@@ -1,5 +1,5 @@
 import { withToken } from "../src/github.js";
-import { handleMcpMessage } from "../src/mcp.js";
+import { OWNER_KEY_HOURS, handleMcpMessage } from "../src/mcp.js";
 import { SESSION_COOKIE, openSession } from "./session.js";
 import {
   OAuthError, checkAuthorize, cleanName, exchange, issueCode, metadata, newContributor, registerClient, seal, unseal, verifyAccess,
@@ -15,7 +15,7 @@ export interface ConnectorEnv {
   BOT_GITHUB_TOKEN?: string;
 }
 
-const VERSION = "0.5.0";
+const VERSION = "0.5.1";
 const CONTRIBUTOR_COOKIE = "lmai_contributor";
 const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "Authorization, Content-Type, Mcp-Protocol-Version, Mcp-Session-Id", "Access-Control-Allow-Methods": "GET, POST, OPTIONS" };
 
@@ -23,7 +23,7 @@ const json = (status: number, data: unknown, headers: Record<string, string> = {
   new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store", ...CORS, ...headers } });
 
 export function isConnectorPath(path: string): boolean {
-  return path === "/mcp" || path === "/api/connector" || path.startsWith("/oauth/") || path.startsWith("/.well-known/oauth-");
+  return path === "/mcp" || path === "/api/connector" || path.startsWith("/api/plan/") || path.startsWith("/oauth/") || path.startsWith("/.well-known/oauth-");
 }
 
 export async function connector(req: Request, url: URL, env: ConnectorEnv): Promise<Response> {
@@ -44,6 +44,7 @@ export async function connector(req: Request, url: URL, env: ConnectorEnv): Prom
     }
     if (path === "/oauth/authorize") return await authorize(req, url, env);
     if (path === "/mcp") return await mcp(req, origin, env);
+    if (path.startsWith("/api/plan/")) return await planLink(req, path, env);
     if (path === "/api/connector") {
       // Lets lendmyai.com know this browser finished connecting Claude, so the site can guide setup itself.
       const known = await unseal<Contributor>(env.SESSION_SECRET, "contributor", cookie(req, CONTRIBUTOR_COOKIE));
@@ -54,6 +55,34 @@ export async function connector(req: Request, url: URL, env: ConnectorEnv): Prom
     if (e instanceof OAuthError) return json(e.status, { error: e.code, error_description: e.message });
     return json(500, { error: "server_error", error_description: e instanceof Error ? e.message : String(e) });
   }
+}
+
+// ---------- "Plan tasks with Claude" ----------
+
+/**
+ * Returns the Claude link for the Plan button: a new chat whose message carries
+ * an owner key, a sealed 24-hour grant to post tasks to this one project as the
+ * signed-in owner. No CORS headers: only lendmyai.com itself may read it.
+ */
+async function planLink(req: Request, path: string, env: ConnectorEnv): Promise<Response> {
+  const reply = (status: number, data: unknown) =>
+    new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
+  const m = /^\/api\/plan\/([\w.-]+)\/([\w.-]+)$/.exec(path);
+  if (!m || req.method !== "GET") return reply(404, { error: "Not found" });
+  const owner = await signedInGitHub(req, env);
+  if (!owner) return reply(401, { error: "Sign in with GitHub first." });
+
+  const res = await fetch(`https://api.github.com/repos/${m[1]}/${m[2]}`, {
+    headers: { Authorization: `Bearer ${owner.token}`, Accept: "application/vnd.github+json", "User-Agent": "lendmyai" },
+  });
+  const repo = (await res.json().catch(() => ({}))) as any;
+  if (!res.ok) return reply(404, { error: "Project not found." });
+  if (repo.private) return reply(400, { error: "lendmyai only works with public projects." });
+  if (!(repo.permissions?.triage || repo.permissions?.push)) return reply(403, { error: "Only the project's owners can plan its tasks." });
+
+  const key = await seal(env.SESSION_SECRET, "ownerkey", { g: owner.login, t: owner.token, p: repo.full_name }, OWNER_KEY_HOURS * 3600);
+  const prompt = `Help me plan lendmyai tasks for my project ${repo.full_name} (owner key: ${key}).\n\nWhat I want to achieve: `;
+  return reply(200, { claudeUrl: `https://claude.ai/new?q=${encodeURIComponent(prompt)}` });
 }
 
 // ---------- consent page ----------
@@ -159,7 +188,7 @@ async function mcp(req: Request, origin: string, env: ConnectorEnv): Promise<Res
   const body = await req.json().catch(() => undefined);
   if (!body) return json(400, { jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error" } });
   const messages = Array.isArray(body) ? body : [body];
-  const ctx = { who: { id: who.u, name: who.n }, github: who.g && who.t ? { login: who.g, token: who.t } : undefined };
+  const ctx = { who: { id: who.u, name: who.n }, github: who.g && who.t ? { login: who.g, token: who.t } : undefined, secret: env.SESSION_SECRET };
 
   const run = async () => (await Promise.all(messages.map((m) => handleMcpMessage(m, ctx, VERSION)))).filter(Boolean);
   // GitHub work happens as the lendmyai bot account.

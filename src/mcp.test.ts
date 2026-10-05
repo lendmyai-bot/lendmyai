@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { TOOLS, handleMcpMessage } from "./mcp.js";
+import { seal } from "./oauth.js";
+
+const SECRET = "s".repeat(40);
 
 const ctx = { who: { id: "lendmyai:abcdef0123456789", name: "Jane" } };
 const call = (name: string, args: object, c: object = ctx) =>
@@ -21,11 +24,28 @@ test("contributor and owner tools are listed", () => {
   for (const n of ["start_task", "write_file", "submit_work", "my_projects", "explore_project", "create_tasks"]) assert.ok(names.includes(n), n);
 });
 
-test("owner tools explain how to link GitHub when it isn't linked", async () => {
+test("owner tools point to the Plan button when there's no owner key", async () => {
   for (const name of ["my_projects", "create_tasks"]) {
     const res = await call(name, { project: "a/b", tasks: [{ title: "x", goal: "y", done_when: "z" }] });
     assert.equal(res.result.isError, true);
-    assert.match(res.result.content[0].text, /needs your GitHub account/);
+    assert.match(res.result.content[0].text, /Plan tasks with Claude/);
+  }
+});
+
+test("an owner key only works for its own project", async () => {
+  const key = await seal(SECRET, "ownerkey", { g: "tom", t: "gho_x", p: "tom/recipes" }, 3600);
+  const res = await call("create_tasks", { project: "tom/other", owner_key: key, tasks: [{ title: "x", goal: "y", done_when: "z" }] }, { ...ctx, secret: SECRET });
+  assert.equal(res.result.isError, true);
+  assert.match(res.result.content[0].text, /for tom\/recipes, not tom\/other/);
+});
+
+test("expired, forged, or other-kind keys are rejected", async () => {
+  const expired = await seal(SECRET, "ownerkey", { g: "tom", t: "gho_x", p: "tom/recipes" }, -1);
+  const wrongKind = await seal(SECRET, "access", { g: "tom", t: "gho_x", p: "tom/recipes" }, 3600);
+  for (const key of [expired, wrongKind, "garbage"]) {
+    const res = await call("explore_project", { project: "tom/recipes", owner_key: key }, { ...ctx, secret: SECRET });
+    assert.equal(res.result.isError, true);
+    assert.match(res.result.content[0].text, /expired or isn't valid/);
   }
 });
 

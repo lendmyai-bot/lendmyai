@@ -7,7 +7,7 @@
 
 const enc = new TextEncoder();
 
-export type Kind = "client" | "code" | "access" | "refresh" | "contributor";
+export type Kind = "client" | "code" | "access" | "refresh" | "contributor" | "ownerkey";
 
 /**
  * A connected contributor: id and display name, plus, for project owners who

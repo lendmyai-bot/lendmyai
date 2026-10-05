@@ -3,6 +3,7 @@ import {
 } from "./contribute.js";
 import { api, withToken } from "./github.js";
 import { createTask, listProject, managedRepos } from "./projects.js";
+import { unseal } from "./oauth.js";
 import { parseIssueRef } from "./protocol.js";
 import { deleteFile, listFiles, readFile, writeFile } from "./repofiles.js";
 import { listTasks, loadTask, maintainerNotes, type Task } from "./tasks.js";
@@ -26,7 +27,7 @@ How to work on a task:
 4. When done, call submit_work with a short plain-language summary. If you can't finish, call give_up with notes for the next person.
 
 Planning tasks for a project owner:
-1. If they didn't say which project, call my_projects and ask.
+1. If their message includes an owner key, pass it as owner_key to every owner tool. If they didn't say which project, call my_projects and ask.
 2. Ask what they want to achieve, then call explore_project (and read_project_file if needed) to understand the project.
 3. Propose a short numbered list of tasks. Each must be small enough for one AI session, clear to someone new to the project, and have a concrete "done when". Prefer tasks that can be done independently; note dependencies when one task needs another first.
 4. Show the list in plain language and wait for the owner to approve or change it. Only then call create_tasks.
@@ -35,6 +36,7 @@ Talk to the person in plain, friendly, non-technical language; many contributors
 
 const taskArg = { type: "string", description: 'Task reference like "owner/repo#12" (shown on lendmyai.com).' };
 const projectArg = { type: "string", description: 'Project like "owner/repo".' };
+const ownerKeyArg = { type: "string", description: "The owner key from the person's message, if there is one." };
 const MAX_NEW_TASKS = 15;
 
 export const TOOLS = [
@@ -103,13 +105,13 @@ export const TOOLS = [
   {
     name: "explore_project",
     description: "Project owners: get an overview of a project (description, README, files, existing tasks) to plan tasks for it.",
-    inputSchema: { type: "object", properties: { project: projectArg }, required: ["project"] },
+    inputSchema: { type: "object", properties: { project: projectArg, owner_key: ownerKeyArg }, required: ["project"] },
     annotations: { readOnlyHint: true },
   },
   {
     name: "read_project_file",
     description: "Project owners: read one file of a project while planning tasks.",
-    inputSchema: { type: "object", properties: { project: projectArg, path: { type: "string" } }, required: ["project", "path"] },
+    inputSchema: { type: "object", properties: { project: projectArg, path: { type: "string" }, owner_key: ownerKeyArg }, required: ["project", "path"] },
     annotations: { readOnlyHint: true },
   },
   {
@@ -119,6 +121,7 @@ export const TOOLS = [
       type: "object",
       properties: {
         project: projectArg,
+        owner_key: ownerKeyArg,
         tasks: {
           type: "array",
           minItems: 1,
@@ -147,14 +150,34 @@ interface Ctx {
   who: Who;
   /** Set when a project owner linked GitHub while connecting; owner tools act as them. */
   github?: { login: string; token: string };
+  /** Server secret, to open owner keys. */
+  secret?: string;
 }
 
-const LINK_GITHUB = "To plan tasks, lendmyai needs your GitHub account. Sign in with GitHub on lendmyai.com, then in Claude's connector settings disconnect lendmyai and connect it again.";
+/**
+ * An owner key is what the "Plan tasks with Claude" button on lendmyai.com puts
+ * in the chat: a sealed, 24-hour grant to act as the signed-in owner on one
+ * project. Only this server can open it.
+ */
+export interface OwnerKey { g: string; t: string; p: string }
+export const OWNER_KEY_HOURS = 24;
 
-/** Runs owner tools with the owner's own GitHub token, so the tasks count as maintainer-approved. */
-function asOwner<T>(ctx: Ctx, fn: () => Promise<T>): Promise<T> {
-  if (!ctx.github) throw new ToolError(LINK_GITHUB);
-  return withToken(ctx.github.token, fn);
+const NEEDS_OWNER = "To plan tasks, open your project on lendmyai.com (signed in with GitHub) and click Plan tasks with Claude. That starts a chat with an owner key for this project.";
+
+/**
+ * Runs owner tools with the owner's own GitHub token, so the tasks count as
+ * maintainer-approved: from an owner key for this project, or from a GitHub
+ * account linked when the connector was connected.
+ */
+async function asOwner<T>(ctx: Ctx, project: string | undefined, key: unknown, fn: (login: string) => Promise<T>): Promise<T> {
+  if (typeof key === "string" && key.trim()) {
+    const grant = ctx.secret ? await unseal<OwnerKey>(ctx.secret, "ownerkey", key.trim()) : undefined;
+    if (!grant) throw new ToolError("This owner key has expired or isn't valid. " + NEEDS_OWNER);
+    if (project && grant.p.toLowerCase() !== project.toLowerCase()) throw new ToolError(`This owner key is for ${grant.p}, not ${project}.`);
+    return withToken(grant.t, () => fn(grant.g));
+  }
+  if (!ctx.github) throw new ToolError(NEEDS_OWNER);
+  return withToken(ctx.github.token, () => fn(ctx.github!.login));
 }
 
 function projectName(p: unknown): string {
@@ -194,13 +217,13 @@ async function myWork(ref: unknown, ctx: Ctx) {
 const tools: Record<string, (args: any, ctx: Ctx) => Promise<string>> = {
   // ---------- project owners ----------
 
-  my_projects: (_args, ctx) => asOwner(ctx, async () => {
+  my_projects: (args, ctx) => asOwner(ctx, undefined, args.owner_key, async () => {
     const repos = await managedRepos();
     if (!repos.length) return "You don't have public GitHub projects you can manage. Create one on GitHub first.";
     return `Projects you can add tasks to:\n${repos.map((r) => `- ${r.fullName}${r.listed ? " (already on lendmyai)" : ""}${r.description ? `: ${r.description}` : ""}`).join("\n")}`;
   }),
 
-  explore_project: (args, ctx) => asOwner(ctx, async () => {
+  explore_project: (args, ctx) => asOwner(ctx, projectName(args.project), args.owner_key, async () => {
     const project = projectName(args.project);
     const repo = await repoInfo(project);
     const branch = repo.default_branch;
@@ -228,17 +251,17 @@ const tools: Record<string, (args: any, ctx: Ctx) => Promise<string>> = {
     ].join("\n");
   }),
 
-  read_project_file: (args, ctx) => asOwner(ctx, async () => {
+  read_project_file: (args, ctx) => asOwner(ctx, projectName(args.project), args.owner_key, async () => {
     const project = projectName(args.project);
     const repo = await repoInfo(project);
     return readFile(project, repo.default_branch, String(args.path ?? ""));
   }),
 
-  create_tasks: (args, ctx) => asOwner(ctx, async () => {
+  create_tasks: (args, ctx) => asOwner(ctx, projectName(args.project), args.owner_key, async (login) => {
     const project = projectName(args.project);
     const repo = await repoInfo(project);
     if (repo.private) throw new ToolError("lendmyai only works with public projects.");
-    if (!(repo.permissions?.triage || repo.permissions?.push)) throw new ToolError(`You (@${ctx.github!.login}) can't add tasks to ${project}; only its owners and collaborators can.`);
+    if (!(repo.permissions?.triage || repo.permissions?.push)) throw new ToolError(`You (@${login}) can't add tasks to ${project}; only its owners and collaborators can.`);
     const list: any[] = Array.isArray(args.tasks) ? args.tasks : [];
     if (!list.length) throw new ToolError("Give at least one task.");
     if (list.length > MAX_NEW_TASKS) throw new ToolError(`At most ${MAX_NEW_TASKS} tasks at a time.`);

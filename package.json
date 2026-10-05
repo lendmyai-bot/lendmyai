@@ -1,6 +1,6 @@
 {
   "name": "lendmyai",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Lend your AI to open GitHub tasks. Your agent runs on your computer with your own subscription.",
   "type": "module",
   "bin": {
