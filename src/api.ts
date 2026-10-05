@@ -3,6 +3,7 @@ import { REPO_TOPIC, TASK_LABEL, actorOf, marker, parseMarker, stripMarker } fro
 import {
   branchFor, buildCloudPrompt, checkWorkable, claim, claudeCodeUrl, findPushedWork, headRepo, postHandoff, prepareBranch, release, submitPullRequest,
 } from "./contribute.js";
+import { currentMonth, parseMonth, rankProjects } from "./rank.js";
 import { listTasks, loadTask, maintainerNotes, type Task } from "./tasks.js";
 
 // JSON API shared by the local app (src/server.ts) and the website
@@ -110,6 +111,14 @@ export const sharedRoutes: Route[] = [
   }),
 
   route("GET", "/api/tasks", async (_p, _b, url) => listTasks(url.searchParams.get("repo") || undefined), { public: true }),
+
+  // Rank list: projects ordered by the tokens contributors' agents reported
+  // for work in one month (?month=2026-10, default: this month).
+  route("GET", "/api/rank", async (_p, _b, url) => {
+    const range = parseMonth(url.searchParams.get("month") || currentMonth());
+    if (!range) throw new HttpError(400, "Month must look like 2026-10.");
+    return rankProjects(range);
+  }, { public: true }),
 
   route("GET", "/api/tasks/:owner/:repo/:n", async ([o, r, n]) => {
     const task = await loadTask(o, r, Number(n));
