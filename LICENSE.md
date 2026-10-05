@@ -1,105 +1,35 @@
-# Functional Source License, Version 1.1, ALv2 Future License
+# lendmyai Source-Available License (View Only)
 
-## Abbreviation
+Copyright 2026 tholtman1-del. All rights reserved.
 
-FSL-1.1-ALv2
+This repository is public so that people can read and review the source code. Viewing the code does not give you permission to reuse it. "The Software" means the source code, documentation and other files in this repository, and "we" means the copyright holder above.
 
-## Notice
+## What you may do
 
-Copyright 2026 tholtman1-del
+1. **View.** You may view and read the Software to learn how lendmyai works, to evaluate it, and to review its security.
+2. **Use the official app and website.** You may install and run the official, unmodified lendmyai package that we publish (for example with `npx lendmyai`), and use the lendmyai website, to take part in lendmyai as a contributor or project owner.
+3. **Contribute.** You may modify the Software only to prepare a contribution (such as a pull request) to the official repository at https://github.com/tholtman1-del/lendmyai, including contributions made through lendmyai itself.
 
-## Terms and Conditions
+## What you may not do
 
-### Licensor ("We")
+Except as allowed above, you may not copy, modify, merge, publish, distribute, sublicense, sell, host or deploy the Software, or create derivative works of it, in whole or in part. You may not use it, or code or designs taken from it, to build or run another product or service.
 
-The party offering the Software under these Terms and Conditions.
+## Contributions
 
-### The Software
+By submitting a contribution, you confirm that you have the right to do so. You also grant us a perpetual, worldwide, irrevocable, royalty-free license to use, copy, modify, sublicense and distribute it as part of lendmyai or any other product.
 
-The "Software" is each version of the software that we make available under
-these Terms and Conditions, as indicated by our inclusion of these Terms and
-Conditions with the Software.
+## Forks on GitHub
 
-### License Grant
+GitHub's terms let anyone fork a public repository on GitHub. A fork gives you no rights beyond this license.
 
-Subject to your compliance with this License Grant and the Patents,
-Redistribution and Trademark clauses below, we hereby grant you the right to
-use, copy, modify, create derivative works, publicly perform, publicly display
-and redistribute the Software for any Permitted Purpose identified below.
+## Earlier versions
 
-### Permitted Purpose
+Versions of the Software up to and including commit `7628c14` (October 5, 2026), and npm package versions up to and including 0.2.0, were released under the Functional Source License, Version 1.1, ALv2 Future License, and remain available under those terms. This license applies to all later versions.
 
-A Permitted Purpose is any purpose other than a Competing Use. A Competing Use
-means making the Software available to others in a commercial product or
-service that:
+## Termination
 
-1. substitutes for the Software;
+If you break these terms, your permission to use the Software ends immediately.
 
-2. substitutes for any other product or service we offer using the Software
-   that exists as of the date we make the Software available; or
+## No warranty
 
-3. offers the same or substantially similar functionality as the Software.
-
-Permitted Purposes specifically include using the Software:
-
-1. for your internal use and access;
-
-2. for non-commercial education;
-
-3. for non-commercial research; and
-
-4. in connection with professional services that you provide to a licensee
-   using the Software in accordance with these Terms and Conditions.
-
-### Patents
-
-To the extent your use for a Permitted Purpose would necessarily infringe our
-patents, the license grant above includes a license under our patents. If you
-make a claim against any party that the Software infringes or contributes to
-the infringement of any patent, then your patent license to the Software ends
-immediately.
-
-### Redistribution
-
-The Terms and Conditions apply to all copies, modifications and derivatives of
-the Software.
-
-If you redistribute any copies, modifications or derivatives of the Software,
-you must include a copy of or a link to these Terms and Conditions and not
-remove any copyright notices provided in or with the Software.
-
-### Disclaimer
-
-THE SOFTWARE IS PROVIDED "AS IS" AND WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING WITHOUT LIMITATION WARRANTIES OF FITNESS FOR A PARTICULAR
-PURPOSE, MERCHANTABILITY, TITLE OR NON-INFRINGEMENT.
-
-IN NO EVENT WILL WE HAVE ANY LIABILITY TO YOU ARISING OUT OF OR RELATED TO THE
-SOFTWARE, INCLUDING INDIRECT, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES,
-EVEN IF WE HAVE BEEN INFORMED OF THEIR POSSIBILITY IN ADVANCE.
-
-### Trademarks
-
-Except for displaying the License Details and identifying us as the origin of
-the Software, you have no right under these Terms and Conditions to use our
-trademarks, trade names, service marks or product names.
-
-## Grant of Future License
-
-We hereby irrevocably grant you an additional license to use the Software under
-the Apache License, Version 2.0 that is effective on the second anniversary of
-the date we make the Software available. On or after that date, you may use the
-Software under the Apache License, Version 2.0, in which case the following
-will apply:
-
-Licensed under the Apache License, Version 2.0 (the "License"); you may not use
-this file except in compliance with the License.
-
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software distributed
-under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-CONDITIONS OF ANY KIND, either express or implied. See the License for the
-specific language governing permissions and limitations under the License.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR ITS USE.
