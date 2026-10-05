@@ -225,6 +225,8 @@ const until = (iso) => { const h = (new Date(iso) - Date.now()) / 3600000; retur
 /** Contributors who connect through Claude have a display name instead of a GitHub login. */
 const personName = (x) => (x.name ? x.name : "@" + x.user);
 const CONNECTOR_URL = "https://lendmyai.com/mcp";
+// Opens Claude's "Add custom connector" dialog with lendmyai prefilled.
+const ADD_CONNECTOR_URL = `https://claude.ai/customize/connectors?modal=add-custom-connector&connectorName=lendmyai&connectorUrl=${encodeURIComponent(CONNECTOR_URL)}`;
 const splitRef = (ref) => { const m = /^(.+?)\/(.+?)#(\d+)$/.exec(ref); return m ? [m[1], m[2], m[3]] : []; };
 const taskHref = (ref) => `#/task/${splitRef(ref).join("/")}`;
 
@@ -412,39 +414,20 @@ async function viewTask(o, r, n) {
     } else if (mine) {
       action = `<div class="banner info">You're working on this with the lendmyai app on your computer (${until(s.expires)}).</div>${localApp}`;
     } else {
-      // Main path: Claude chat + the lendmyai connector. No GitHub account needed.
-      const prompt = `Use lendmyai to do this task: ${t.ref} "${t.title}"`;
-      const connected = store.get("connectorAdded") === "1";
+      // Main path: one button. Claude chat + the lendmyai connector, no GitHub account needed.
+      // First-time users get the one-click "add connector" link from Claude itself.
+      const prompt = `Please do this lendmyai task for me: ${t.ref} "${t.title}"\n\n(If you can't see the lendmyai tools, give me this link to add them, then I'll come back: ${ADD_CONNECTOR_URL})`;
       action = `
-        <h2>Do this task with Claude</h2>
         ${s.handoff ? `<div class="banner warn">Claude will continue from ${esc(personName(s.handoff))}'s earlier work.</div>` : ""}
-        <ol class="flow">
-          <li class="${connected ? "done" : ""}" id="stepConnect"><b>Add lendmyai to Claude</b>
-            <span>${connected ? "Done. You only need this once." : "One time only, about 30 seconds."}</span>
-            <div id="setup" ${connected ? "hidden" : ""}>
-              <ol class="steps">
-                <li>Open <a href="https://claude.ai/customize/connectors" target="_blank" rel="noopener">Claude's connector settings ↗</a></li>
-                <li>Click <b>+</b>, then <b>Add custom connector</b>.</li>
-                <li>Name it <b>lendmyai</b> and paste this address:
-                  <div class="cmd" style="margin-top:6px"><code>${esc(CONNECTOR_URL)}</code><button id="copyConnector">Copy</button></div></li>
-                <li>Click <b>Add</b>, then <b>Connect</b>, and type the name you want to be credited with.</li>
-              </ol>
-              <button id="connectedDone" style="width:100%">I've added it</button>
-            </div>
-            ${connected ? `<button class="linkish" id="showSetup">Show the steps again</button>` : ""}</li>
-          <li><b>Ask Claude to do it</b>
-            <span>Claude opens with the request typed in. Just press <b>Send</b>.</span>
-            <a href="https://claude.ai/new?q=${encodeURIComponent(prompt)}" target="_blank" rel="noopener"><button class="primary" style="width:100%">Open Claude ↗</button></a></li>
-          <li><b>That's it</b>
-            <span>Claude does the work and sends it to the project owner, then tells you it's done. The owner decides what gets in.</span></li>
-        </ol>
-        <p class="fine">Works with any Claude plan. No GitHub account needed.</p>
+        <a href="https://claude.ai/new?q=${encodeURIComponent(prompt)}" target="_blank" rel="noopener"><button class="primary big" style="width:100%">Do this task with Claude</button></a>
+        <p class="fine" style="text-align:center">Free with any Claude plan. No GitHub or coding needed.</p>
         <details class="advanced">
-          <summary>Have GitHub? Other ways to help</summary>
-          <p class="fine" style="margin-bottom:10px">With a GitHub account and Claude Pro or Max, Claude Code in the cloud can also run the project's tests.</p>
+          <summary>Other ways to help</summary>
+          <p class="fine" style="margin-bottom:10px">With GitHub and Claude Pro or Max, Claude Code in the cloud can also run the project's tests.</p>
           ${signedOut() ? signInButton("Sign in with GitHub", "") : `<button id="start" style="width:100%">Start with Claude Code (cloud)</button>`}
-        </details>
-        ${localApp}`;
+          <p class="fine"><a href="${esc(ADD_CONNECTOR_URL)}" target="_blank" rel="noopener">Add lendmyai to Claude manually</a></p>
+          <p class="fine">Developers can also run it on their own computer: <code>npx lendmyai</code></p>
+        </details>`;
     }
   } else if (t.jobId) {
     action = `<div class="banner info">An agent is running on this task.</div><a href="#/run/${t.jobId}"><button class="primary">View run</button></a>`;
@@ -511,14 +494,6 @@ async function viewTask(o, r, n) {
   const busy = (btn, label) => { btn.disabled = true; btn.dataset.label = btn.innerHTML; btn.innerHTML = `<span class="spinner"></span> ${label}`; };
   const idle = (btn) => { btn.disabled = false; btn.innerHTML = btn.dataset.label; };
 
-  document.getElementById("copyConnector")?.addEventListener("click", async () => {
-    try { await navigator.clipboard.writeText(CONNECTOR_URL); toast("Copied"); } catch { toast(CONNECTOR_URL); }
-  });
-  document.getElementById("connectedDone")?.addEventListener("click", () => { store.set("connectorAdded", "1"); render(); });
-  document.getElementById("showSetup")?.addEventListener("click", (e) => {
-    document.getElementById("setup").hidden = false;
-    e.target.hidden = true;
-  });
 
   document.getElementById("start")?.addEventListener("click", async (e) => {
     busy(e.target, "Getting things ready…");
