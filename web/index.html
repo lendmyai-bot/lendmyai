@@ -117,7 +117,7 @@
   table { width: 100%; border-collapse: collapse; }
   td, th { text-align: left; padding: 10px 8px; border-top: 1px solid var(--border); }
   th { color: var(--muted); font-weight: 500; font-size: 12px; border-top: 0; }
-  td.num, th.num { text-align: right; }
+  td.right, th.right { text-align: right; }
   .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; vertical-align: -2px; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
@@ -440,8 +440,8 @@ function rankRow(p) {
   return `<tr>
     <td>${p.rank}</td>
     <td><div class="row">${p.avatar ? `<img class="avatar" src="${esc(p.avatar)}&s=48" alt="">` : ""}<a href="${projectHref(p.fullName)}">${esc(p.fullName)}</a></div></td>
-    <td class="num mono" title="${p.tokens.toLocaleString("en-US")} tokens">${p.tokens ? tokenCount(p.tokens) : "–"}</td>
-    <td class="num">${p.tasks}</td>
+    <td class="right mono" title="${p.tokens.toLocaleString("en-US")} tokens">${p.tokens ? tokenCount(p.tokens) : "–"}</td>
+    <td class="right">${p.tasks}</td>
   </tr>`;
 }
 
@@ -466,7 +466,7 @@ async function viewRank(month) {
            <div><b>${data.projects.length}</b><span>project${data.projects.length === 1 ? "" : "s"}</span></div>
          </div>
          <div class="panel"><table>
-           <tr><th>#</th><th>Project</th><th class="num">Tokens</th><th class="num">Tasks done</th></tr>
+           <tr><th>#</th><th>Project</th><th class="right">Tokens</th><th class="right">Tasks done</th></tr>
            ${data.projects.map(rankRow).join("")}
          </table></div>
          <p class="fine">Tokens are reported by the contributor's agent when it sends its result or a checkpoint. For now that's runs started from the local app with Claude; tasks done through the Claude chat connector or Claude Code in the cloud count as done, without tokens.</p>`
