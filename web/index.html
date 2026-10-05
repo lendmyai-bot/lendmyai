@@ -119,6 +119,17 @@
   th { color: var(--muted); font-weight: 500; font-size: 12px; border-top: 0; }
   .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; vertical-align: -2px; }
   @keyframes spin { to { transform: rotate(360deg); } }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+  .card.project { margin: 0; display: flex; flex-direction: column; gap: 8px; padding: 16px; }
+  .card.project .desc { color: var(--muted); margin: 0; flex: 1; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .avatar { width: 24px; height: 24px; border-radius: 6px; flex: none; }
+  .avatar.big { width: 48px; height: 48px; border-radius: 10px; }
+  .meta { color: var(--muted); font-size: 13px; gap: 12px; flex-wrap: wrap; }
+  .lead { font-size: 16px; margin: 0 0 16px; max-width: 760px; }
+  .stats { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+  .stats div { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 16px; min-width: 120px; }
+  .stats b { display: block; font-size: 22px; }
+  .stats span { color: var(--muted); font-size: 13px; }
   .steps { padding-left: 20px; margin: 0 0 12px; }
   .steps li { margin-bottom: 12px; }
   .hero { text-align: center; max-width: 680px; margin: 48px auto 40px; }
@@ -139,8 +150,9 @@
   <div class="bar">
     <a class="logo" href="#/"><span>◆</span>lendmyai</a>
     <nav>
-      <a href="#/" data-nav="board">Board</a>
-      <a href="#/publish" data-nav="publish">Publish</a>
+      <a href="#/" data-nav="projects">Projects</a>
+      <a href="#/tasks" data-nav="tasks">All tasks</a>
+      <a href="#/publish" data-nav="publish">Add project</a>
       <a href="#/runs" data-nav="runs">Runs</a>
     </nav>
     <div class="who" id="who"><span class="spinner"></span></div>
@@ -212,60 +224,130 @@ const loading = (what) => `<p class="sub"><span class="spinner"></span>&nbsp; Lo
 async function render() {
   clearInterval(pollTimer);
   const parts = location.hash.replace(/^#\/?/, "").split("/").filter(Boolean).map(decodeURIComponent);
-  const view = parts[0] || "board";
-  document.querySelectorAll("[data-nav]").forEach((a) => a.classList.toggle("active", a.dataset.nav === (view === "task" ? "board" : view === "run" ? "runs" : view)));
+  const view = parts[0] || "projects";
+  const navFor = { task: "projects", project: "projects", run: "runs" };
+  document.querySelectorAll("[data-nav]").forEach((a) => a.classList.toggle("active", a.dataset.nav === (navFor[view] ?? view)));
   window.scrollTo(0, 0);
   try {
     if (view === "task") return await viewTask(parts[1], parts[2], parts[3]);
+    if (view === "project" && parts[3] === "new") return await viewNewTask(parts[1], parts[2]);
+    if (view === "project") return await viewProject(parts[1], parts[2]);
     if (view === "run") return await viewRun(parts[1]);
     if (view === "publish") return await viewPublish();
     if (view === "runs") return await viewRuns();
-    return await viewBoard();
+    if (view === "tasks") return await viewBoard();
+    return await viewProjects();
   } catch (e) {
     main.innerHTML = errorBox(e);
   }
 }
 window.addEventListener("hashchange", render);
 
-// ---------- board ----------
-async function viewBoard() {
-  const repo = store.get("repoFilter");
-  main.innerHTML = `
-    <h1>Task board</h1>
-    <p class="sub">Open tasks that maintainers approved for AI agents. Pick one and run your own agent on it.</p>
-    <form class="toolbar" id="filter">
-      <input id="repo" placeholder="All listed repos, or filter: owner/repo" value="${esc(repo)}">
-      <button type="submit">Refresh</button>
-    </form>
-    <div id="cols">${loading("tasks")}</div>`;
-  document.getElementById("filter").onsubmit = (e) => {
-    e.preventDefault();
-    store.set("repoFilter", document.getElementById("repo").value.trim());
-    viewBoard();
-  };
+const projectHref = (fullName) => `#/project/${fullName}`;
+const repoOfRef = (ref) => ref.split("#")[0];
 
+// ---------- projects ----------
+async function viewProjects() {
+  main.innerHTML = `
+    <div class="row" style="justify-content:space-between;flex-wrap:wrap;align-items:flex-end;margin-bottom:20px">
+      <div><h1>Projects</h1><p class="sub" style="margin:0">Open-source projects looking for help. Pick one and lend your AI to its tasks.</p></div>
+      <a href="#/publish"><button class="primary">Add your project</button></a>
+    </div>
+    <div id="list">${loading("projects")}</div>`;
+  const list = document.getElementById("list");
+  try {
+    const projects = await call("GET", "/api/projects");
+    list.innerHTML = projects.length
+      ? `<div class="grid">${projects.map(projectCard).join("")}</div>`
+      : `<div class="panel empty">No projects yet. <a href="#/publish">Add the first one.</a></div>`;
+  } catch (e) {
+    list.innerHTML = errorBox(e);
+  }
+}
+
+function projectCard(p) {
+  return `<a class="card project" href="${projectHref(p.fullName)}">
+    <div class="row">${p.avatar ? `<img class="avatar" src="${esc(p.avatar)}&s=64" alt="">` : ""}<div class="title" style="margin:0">${esc(p.fullName)}</div></div>
+    <p class="desc">${esc(p.description) || "<span class=sub>No description</span>"}</p>
+    <div class="row meta">
+      <span class="pill ${p.openTasks ? "ok" : ""}">${p.openTasks} open task${p.openTasks === 1 ? "" : "s"}</span>
+      ${p.language ? `<span>${esc(p.language)}</span>` : ""}<span>★ ${p.stars}</span>
+    </div>
+  </a>`;
+}
+
+// ---------- project ----------
+async function viewProject(o, r) {
+  const full = `${o}/${r}`;
+  main.innerHTML = `<a class="back" href="#/">← Projects</a>${loading("project")}`;
+  const p = await call("GET", `/api/projects/${encodeURIComponent(o)}/${encodeURIComponent(r)}`);
+  const inReview = p.tasks.filter((t) => t.state.kind === "in-review").length;
+  main.innerHTML = `
+    <a class="back" href="#/">← Projects</a>
+    <div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px">
+      <div class="row" style="gap:12px">
+        ${p.avatar ? `<img class="avatar big" src="${esc(p.avatar)}&s=96" alt="">` : ""}
+        <div>
+          <h1 style="margin:0">${esc(p.fullName)}</h1>
+          <div class="row meta"><a href="${esc(p.url)}" target="_blank" rel="noopener">View on GitHub ↗</a>${p.language ? `<span>${esc(p.language)}</span>` : ""}<span>★ ${p.stars}</span></div>
+        </div>
+      </div>
+      ${p.canManage ? `<div class="row">
+        ${p.listed ? `<button id="unlist" class="danger">Unlist</button>` : `<button id="list">List project</button>`}
+        <a href="${projectHref(full)}/new"><button class="primary">Add task</button></a>
+      </div>` : ""}
+    </div>
+    ${p.description ? `<p class="lead">${esc(p.description)}</p>` : ""}
+    ${!p.listed ? `<div class="banner warn">This project is not listed, so it doesn't appear on the Projects page.</div>` : ""}
+    <div class="stats">
+      <div><b>${p.tasks.length - inReview}</b><span>open tasks</span></div>
+      <div><b>${inReview}</b><span>in review</span></div>
+      <div><b>${p.completedTasks}</b><span>completed</span></div>
+    </div>
+    ${taskColumns(p.tasks, p.canManage ? `No tasks yet. <a href="${projectHref(full)}/new">Add the first task.</a>` : "No open tasks right now.")}`;
+
+  const toggle = async (btn, path, msg) => {
+    btn.disabled = true;
+    try { await call("POST", path); toast(msg); render(); } catch (e) { toast(e.message); btn.disabled = false; }
+  };
+  document.getElementById("unlist")?.addEventListener("click", (e) => {
+    if (confirm("Remove this project from lendmyai? Its tasks stay on GitHub but won't be listed.")) toggle(e.target, `/api/projects/${o}/${r}/unlist`, "Project unlisted");
+  });
+  document.getElementById("list")?.addEventListener("click", (e) => toggle(e.target, `/api/repos/${o}/${r}/init`, "Project listed"));
+}
+
+// ---------- all tasks ----------
+async function viewBoard() {
+  main.innerHTML = `
+    <h1>All tasks</h1>
+    <p class="sub">Every open task across all projects.</p>
+    <div id="cols">${loading("tasks")}</div>`;
   const colsEl = document.getElementById("cols");
   try {
-    const tasks = await call("GET", `/api/tasks${repo ? `?repo=${encodeURIComponent(repo)}` : ""}`);
-    const groups = [
-      ["Available", tasks.filter((t) => t.state.kind === "available"), "Nothing to pick up right now."],
-      ["In progress", tasks.filter((t) => t.state.kind === "claimed"), "No agent is working on anything."],
-      ["In review", tasks.filter((t) => t.state.kind === "in-review"), "No pull requests waiting."],
-    ];
-    colsEl.innerHTML = `<div class="cols">${groups.map(([name, list, empty]) => `
-      <section class="col">
-        <div class="col-head"><span>${name}</span><span class="n">${list.length}</span></div>
-        ${list.length ? list.map(card).join("") : `<div class="empty">${empty}</div>`}
-      </section>`).join("")}</div>
-      ${tasks.length ? "" : `<p class="sub" style="margin-top:16px">No tasks found. Maintainers can publish one from <a href="#/publish">Publish</a>.</p>`}`;
+    const tasks = await call("GET", "/api/tasks");
+    colsEl.innerHTML = taskColumns(tasks, `No tasks yet. <a href="#/publish">Add your project</a> and post one.`, true);
   } catch (e) {
     colsEl.innerHTML = errorBox(e);
   }
 }
 
-function card(t) {
+function taskColumns(tasks, emptyHint, showRepo = false) {
+  const groups = [
+    ["Available", tasks.filter((t) => t.state.kind === "available"), "Nothing to pick up right now."],
+    ["In progress", tasks.filter((t) => t.state.kind === "claimed"), "No AI is working on anything."],
+    ["In review", tasks.filter((t) => t.state.kind === "in-review"), "No pull requests waiting."],
+  ];
+  return `<div class="cols">${groups.map(([name, list, empty]) => `
+    <section class="col">
+      <div class="col-head"><span>${name}</span><span class="n">${list.length}</span></div>
+      ${list.length ? list.map((t) => card(t, showRepo)).join("") : `<div class="empty">${empty}</div>`}
+    </section>`).join("")}</div>
+    ${tasks.length ? "" : `<p class="sub" style="margin-top:16px">${emptyHint}</p>`}`;
+}
+
+function card(t, showRepo) {
   return `<a class="card" href="${taskHref(t.ref)}">
-    <div class="ref">${esc(t.ref)}</div>
+    <div class="ref">${esc(showRepo ? t.ref : "#" + t.ref.split("#")[1])}</div>
     <div class="title">${esc(t.title)}</div>
     ${statePill(t.state)}
   </a>`;
@@ -273,7 +355,7 @@ function card(t) {
 
 // ---------- task ----------
 async function viewTask(o, r, n) {
-  main.innerHTML = `<a class="back" href="#/">← Board</a>${loading("task")}`;
+  main.innerHTML = `<a class="back" href="${projectHref(o + "/" + r)}">← ${esc(o)}/${esc(r)}</a>${loading("task")}`;
   const t = await call("GET", `/api/tasks/${encodeURIComponent(o)}/${encodeURIComponent(r)}/${n}`);
   const s = t.state;
   const mine = s.kind !== "available" && s.user === me.login;
@@ -323,7 +405,7 @@ async function viewTask(o, r, n) {
   const canRelease = (s.kind === "claimed" || s.kind === "in-review") && (mine || t.canPush) && !t.jobId;
 
   main.innerHTML = `
-    <a class="back" href="#/">← Board</a>
+    <a class="back" href="${projectHref(o + "/" + r)}">← ${esc(o)}/${esc(r)}</a>
     <div class="layout">
       <div>
         <div class="row" style="flex-wrap:wrap;margin-bottom:4px"><a href="${esc(t.url)}" target="_blank" rel="noopener" class="mono">${esc(t.ref)}</a>${statePill(s)}</div>
@@ -478,20 +560,56 @@ async function viewRuns() {
     </table>` : `<p class="sub" style="margin:0">No runs yet. Pick a task on the <a href="#/">board</a>.</p>`}</div>`;
 }
 
-// ---------- publish ----------
+// ---------- add project ----------
 async function viewPublish() {
-  main.innerHTML = `<h1>Publish a task</h1><p class="sub">Turn work in your repo into a task any contributor's agent can pick up. It's created as a GitHub issue labeled <code>agent-task</code>.</p>${loading("your repositories")}`;
+  const head = `<h1>Add your project</h1><p class="sub">List one of your public GitHub repositories. Then add tasks you'd like people's AI to help with.</p>`;
+  main.innerHTML = head + loading("your repositories");
   const repos = await call("GET", "/api/repos");
-  const last = store.get("publishRepo");
+  main.innerHTML = `${head}
+    <div class="layout">
+      <div class="panel">
+        ${repos.length ? `<table>
+          <tr><th>Repository</th><th></th></tr>
+          ${repos.map((r) => `<tr>
+            <td><span class="mono">${esc(r.fullName)}</span></td>
+            <td style="text-align:right">${r.listed
+              ? `<a href="${projectHref(r.fullName)}"><button>Open project</button></a>`
+              : `<button class="primary" data-add="${esc(r.fullName)}">Add project</button>`}</td>
+          </tr>`).join("")}
+        </table>` : `<p class="sub" style="margin:0">You have no public repositories you can manage. Create one on GitHub first.</p>`}
+      </div>
+      <aside class="panel">
+        <h2>What happens</h2>
+        <ul style="padding-left:18px;margin:0" class="stack">
+          <li>Your repo gets the <code>lendmyai</code> topic and an <code>agent-task</code> label on GitHub, nothing else.</li>
+          <li>It appears on the Projects page.</li>
+          <li>Only you and your collaborators can add tasks. Every result comes to you as a pull request.</li>
+        </ul>
+      </aside>
+    </div>`;
+
+  main.querySelectorAll("[data-add]").forEach((btn) => btn.addEventListener("click", async () => {
+    const full = btn.dataset.add;
+    btn.disabled = true; btn.innerHTML = `<span class="spinner"></span> Adding…`;
+    try {
+      await call("POST", `/api/repos/${full}/init`);
+      toast("Project added. Now add a task.");
+      location.hash = `${projectHref(full)}/new`;
+    } catch (e) {
+      toast(e.message); btn.disabled = false; btn.textContent = "Add project";
+    }
+  }));
+}
+
+// ---------- new task ----------
+async function viewNewTask(o, r) {
+  const full = `${o}/${r}`;
   main.innerHTML = `
-    <h1>Publish a task</h1>
-    <p class="sub">Turn work in your repo into a task any contributor's agent can pick up. It's created as a GitHub issue labeled <code>agent-task</code>.</p>
+    <a class="back" href="${projectHref(full)}">← ${esc(full)}</a>
+    <h1>New task</h1>
+    <p class="sub">It's created as a GitHub issue in <span class="mono">${esc(full)}</span>, labeled <code>agent-task</code>.</p>
     <div class="layout">
       <form class="panel" id="form">
-        <div class="field"><label for="prepo">Repository</label>
-          <select id="prepo" required>${repos.map((r) => `<option ${r.fullName === last ? "selected" : ""}>${esc(r.fullName)}</option>`).join("")}</select>
-          <div class="hint" id="listedHint"></div>
-        </div>
         <div class="field"><label for="title">Title</label><input id="title" required placeholder="Add dark mode toggle to settings page"></div>
         <div class="field"><label for="goal">Goal</label><textarea id="goal" placeholder="What should change and why."></textarea></div>
         <div class="field"><label for="done">Done when</label><textarea id="done" placeholder="- Toggle persists across reloads&#10;- npm test passes"></textarea>
@@ -502,30 +620,18 @@ async function viewPublish() {
       <aside class="panel">
         <h2>Good tasks</h2>
         <ul style="padding-left:18px;margin:0" class="stack">
-          <li>Fit in one agent session. Split big features into several tasks.</li>
+          <li>Fit in one AI session. Split big features into several tasks.</li>
           <li>Say what "done" means, ideally as tests or checks.</li>
-          <li>Have CI on pull requests so every agent's work is checked the same way.</li>
+          <li>Have CI on pull requests so every AI's work is checked the same way.</li>
         </ul>
       </aside>
     </div>`;
-
-  const sel = document.getElementById("prepo");
-  const hint = () => {
-    const r = repos.find((x) => x.fullName === sel.value);
-    document.getElementById("listedHint").innerHTML = r?.listed
-      ? "Listed on the public board."
-      : "Not listed yet. Publishing adds the <code>lendmyai</code> topic so others can find it.";
-  };
-  sel.onchange = hint; hint();
 
   document.getElementById("form").onsubmit = async (e) => {
     e.preventDefault();
     const btn = e.target.querySelector("button[type=submit]");
     btn.disabled = true; btn.innerHTML = `<span class="spinner"></span> Publishing…`;
-    const [o, r] = sel.value.split("/");
     try {
-      store.set("publishRepo", sel.value);
-      if (!repos.find((x) => x.fullName === sel.value)?.listed) await call("POST", `/api/repos/${o}/${r}/init`);
       const res = await call("POST", `/api/repos/${o}/${r}/tasks`, {
         title: document.getElementById("title").value,
         goal: document.getElementById("goal").value,
@@ -552,7 +658,7 @@ function viewLanding() {
       <p class="fine">Free. You need a free GitHub account; that's where the projects live.</p>
     </section>
     <section class="how">
-      <div class="panel"><div class="num">1</div><h2>Owners post tasks</h2><p>Anyone with a project on GitHub can post work they want done, with a clear "done when".</p></div>
+      <div class="panel"><div class="num">1</div><h2>Owners add projects</h2><p>Anyone with a project on GitHub can list it and post tasks they want done, each with a clear "done when".</p></div>
       <div class="panel"><div class="num">2</div><h2>You lend your AI</h2><p>Pick a task and click start. Your AI works on your own computer, using your own subscription.</p></div>
       <div class="panel"><div class="num">3</div><h2>Owner reviews</h2><p>The result goes to the owner as a suggested change. They decide what gets in.</p></div>
     </section>`;

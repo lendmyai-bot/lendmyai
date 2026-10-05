@@ -35,7 +35,58 @@ export function errorResponse(e: unknown): { status: number; error: string } {
 
 export const refOf = (o: string, r: string, n: string | number) => `${o}/${r}#${n}`;
 
+// A project is a public repo with the lendmyai topic; its tasks are its open
+// issues labeled agent-task.
+function projectSummary(r: any, openTasks: number) {
+  return {
+    fullName: r.full_name,
+    description: r.description ?? "",
+    language: r.language ?? "",
+    stars: r.stargazers_count ?? 0,
+    avatar: r.owner?.avatar_url ?? "",
+    url: r.html_url,
+    openTasks,
+  };
+}
+
 export const sharedRoutes: Route[] = [
+  route("GET", "/api/projects", async () => {
+    const [repos, issues] = await Promise.all([
+      api<any>("GET", `/search/repositories?q=${encodeURIComponent(`topic:${REPO_TOPIC} is:public archived:false`)}&sort=updated&per_page=60`),
+      api<any>("GET", `/search/issues?q=${encodeURIComponent(`is:issue is:open label:${TASK_LABEL}`)}&per_page=100`),
+    ]);
+    const counts = new Map<string, number>();
+    for (const i of issues.items) {
+      const full = i.repository_url.replace("https://api.github.com/repos/", "");
+      counts.set(full, (counts.get(full) ?? 0) + 1);
+    }
+    return repos.items.map((r: any) => projectSummary(r, counts.get(r.full_name) ?? 0));
+  }),
+
+  route("GET", "/api/projects/:owner/:repo", async ([o, r]) => {
+    const full = `${o}/${r}`;
+    const closedQ = `is:issue is:closed label:${TASK_LABEL} repo:${full}`;
+    const [repo, tasks, closed] = await Promise.all([
+      api<any>("GET", `/repos/${full}`),
+      listTasks(full, 100),
+      api<any>("GET", `/search/issues?q=${encodeURIComponent(closedQ)}&per_page=1`),
+    ]);
+    return {
+      ...projectSummary(repo, tasks.length),
+      listed: (repo.topics ?? []).includes(REPO_TOPIC),
+      canManage: !!(repo.permissions?.triage || repo.permissions?.push),
+      completedTasks: closed.total_count ?? 0,
+      tasks,
+    };
+  }),
+
+  route("POST", "/api/projects/:owner/:repo/unlist", async ([o, r]) => {
+    const full = `${o}/${r}`;
+    const { names } = await api<{ names: string[] }>("GET", `/repos/${full}/topics`);
+    await api("PUT", `/repos/${full}/topics`, { names: names.filter((n) => n !== REPO_TOPIC) });
+    return { ok: true };
+  }),
+
   route("GET", "/api/tasks", async (_p, _b, url) => listTasks(url.searchParams.get("repo") || undefined)),
 
   route("GET", "/api/tasks/:owner/:repo/:n", async ([o, r, n]) => {

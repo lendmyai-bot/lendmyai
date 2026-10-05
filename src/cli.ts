@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { parseArgs } from "node:util";
 import { AGENTS } from "./agents.js";
+import { match, sharedRoutes } from "./api.js";
 import { findToken, login, logout, useNodeAuth } from "./auth.js";
 import { GitHubError, api, getComments, me, postComment } from "./github.js";
 import { REPO_TOPIC, TASK_LABEL, marker, parseIssueRef } from "./protocol.js";
@@ -16,7 +17,8 @@ const HELP = `lendmyai: lend your AI to open GitHub tasks.
   lendmyai login | logout           Sign in to / out of GitHub
 
 Contributors
-  lendmyai tasks [owner/repo]       List open agent tasks (all opted-in repos, or one repo)
+  lendmyai projects                 List projects looking for help
+  lendmyai tasks [owner/repo]       List open agent tasks (all projects, or one project)
   lendmyai work <owner/repo#123>    Claim a task, run your agent on it, then open a PR or hand off
       --agent <${AGENTS.map((a) => a.name).join("|")}>   Agent CLI to use (default: first one installed)
       --agent-cmd "<cmd {prompt}>"    Any other agent, e.g. "aider --message {prompt}"
@@ -56,6 +58,12 @@ async function main(): Promise<void> {
       return login();
     case "logout":
       return logout();
+    case "projects": {
+      const projects = (await match(sharedRoutes, "GET", "/api/projects")!.handler([], undefined, new URL("http://x"))) as any[];
+      if (!projects.length) return console.log("No projects listed yet.");
+      for (const p of projects) console.log(`${p.fullName.padEnd(40)} ${String(p.openTasks).padStart(3)} open  ${p.description}`);
+      return;
+    }
     case "tasks": {
       const tasks = await listTasks(arg);
       if (!tasks.length) return console.log("No open agent tasks found.");
