@@ -8,6 +8,7 @@
   },
   "files": [
     "dist",
+    "!dist/*.test.js",
     "web"
   ],
   "scripts": {
