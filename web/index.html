@@ -139,6 +139,9 @@
   .flow .steps { font-size: 13px; padding-left: 18px; margin: 4px 0 10px; }
   .flow .steps li { margin-bottom: 8px; }
   .fine { color: var(--muted); font-size: 12px; margin: 8px 0 0; }
+  .waiting { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; padding: 16px; border: 1px dashed var(--accent); border-radius: var(--radius); background: var(--accent-soft); margin-bottom: 8px; }
+  .waiting .spinner { width: 22px; height: 22px; margin-bottom: 4px; }
+  .waiting span { color: var(--text); font-size: 14px; }
   .advanced { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 12px; }
   .advanced summary { cursor: pointer; color: var(--muted); font-size: 13px; }
   .advanced .steps { margin-top: 10px; font-size: 13px; }
@@ -227,6 +230,56 @@ const personName = (x) => (x.name ? x.name : "@" + x.user);
 const CONNECTOR_URL = "https://lendmyai.com/mcp";
 // Opens Claude's "Add custom connector" dialog with lendmyai prefilled.
 const ADD_CONNECTOR_URL = `https://claude.ai/customize/connectors?modal=add-custom-connector&connectorName=lendmyai&connectorUrl=${encodeURIComponent(CONNECTOR_URL)}`;
+/** Whether this browser has connected Claude to lendmyai (known from the connect page cookie). */
+let connector = { connected: false };
+async function refreshConnector() {
+  try { connector = await call("GET", "/api/connector"); } catch {}
+  return connector;
+}
+const claudeTaskUrl = (t) => `https://claude.ai/new?q=${encodeURIComponent(`Please do this lendmyai task for me: ${t.ref} "${t.title}"`)}`;
+
+/** The single button: straight to Claude when connected, otherwise one-time setup that this page follows by itself. */
+function doTaskHtml(t, waiting = false) {
+  const note = `<p class="fine" style="text-align:center">Free with any Claude plan. No GitHub or coding needed.</p>`;
+  if (connector.connected) {
+    return `<a href="${esc(claudeTaskUrl(t))}" target="_blank" rel="noopener"><button class="primary big" style="width:100%">Do this task with Claude</button></a>
+      <p class="fine" style="text-align:center">Claude opens with the task ready; just press Send. <br>Connected as ${esc(connector.name)}</p>`;
+  }
+  if (waiting) {
+    return `<div class="waiting">
+        <span class="spinner"></span>
+        <b>Finish in the Claude tab</b>
+        <span>Click <b>Add</b>, then <b>Connect</b>, and type your name.</span>
+        <span class="fine">This page continues by itself.</span>
+      </div>
+      <a href="${esc(claudeTaskUrl(t))}" target="_blank" rel="noopener" class="fine" style="display:block;text-align:center">I already added lendmyai</a>`;
+  }
+  return `<button class="primary big" id="connectAndDo" style="width:100%">Do this task with Claude</button>${note}`;
+}
+
+function watchConnector(t) {
+  const box = document.getElementById("doTask");
+  box.innerHTML = doTaskHtml(t, true);
+  const started = Date.now();
+  const tick = async () => {
+    if (!document.body.contains(box)) return clearInterval(pollTimer);
+    if ((await refreshConnector()).connected || Date.now() - started > 15 * 60_000) {
+      clearInterval(pollTimer);
+      box.innerHTML = doTaskHtml(t);
+      if (connector.connected) box.insertAdjacentHTML("afterbegin", `<div class="banner ok">✓ lendmyai is connected to Claude.</div>`);
+      else box.querySelector("#connectAndDo")?.addEventListener("click", () => startConnect(t));
+    }
+  };
+  clearInterval(pollTimer);
+  pollTimer = setInterval(tick, 2000);
+  window.addEventListener("focus", tick, { once: true });
+}
+
+function startConnect(t) {
+  window.open(ADD_CONNECTOR_URL, "_blank", "noopener");
+  watchConnector(t);
+}
+
 const splitRef = (ref) => { const m = /^(.+?)\/(.+?)#(\d+)$/.exec(ref); return m ? [m[1], m[2], m[3]] : []; };
 const taskHref = (ref) => `#/task/${splitRef(ref).join("/")}`;
 
@@ -416,11 +469,9 @@ async function viewTask(o, r, n) {
     } else {
       // Main path: one button. Claude chat + the lendmyai connector, no GitHub account needed.
       // First-time users get the one-click "add connector" link from Claude itself.
-      const prompt = `Please do this lendmyai task for me: ${t.ref} "${t.title}"\n\n(If you can't see the lendmyai tools, give me this link to add them, then I'll come back: ${ADD_CONNECTOR_URL})`;
       action = `
         ${s.handoff ? `<div class="banner warn">Claude will continue from ${esc(personName(s.handoff))}'s earlier work.</div>` : ""}
-        <a href="https://claude.ai/new?q=${encodeURIComponent(prompt)}" target="_blank" rel="noopener"><button class="primary big" style="width:100%">Do this task with Claude</button></a>
-        <p class="fine" style="text-align:center">Free with any Claude plan. No GitHub or coding needed.</p>
+        <div id="doTask">${doTaskHtml(t)}</div>
         <details class="advanced">
           <summary>Other ways to help</summary>
           <p class="fine" style="margin-bottom:10px">With GitHub and Claude Pro or Max, Claude Code in the cloud can also run the project's tests.</p>
@@ -494,6 +545,8 @@ async function viewTask(o, r, n) {
   const busy = (btn, label) => { btn.disabled = true; btn.dataset.label = btn.innerHTML; btn.innerHTML = `<span class="spinner"></span> ${label}`; };
   const idle = (btn) => { btn.disabled = false; btn.innerHTML = btn.dataset.label; };
 
+
+  document.getElementById("connectAndDo")?.addEventListener("click", () => startConnect(t));
 
   document.getElementById("start")?.addEventListener("click", async (e) => {
     busy(e.target, "Getting things ready…");
@@ -797,6 +850,7 @@ function viewLanding() {
   }
   const hosted = me.mode === "hosted";
   document.querySelector('[data-nav="runs"]').hidden = hosted;
+  if (hosted) await refreshConnector();
   document.getElementById("who").innerHTML = signedOut()
     ? signInButton("Sign in", "")
     : hosted

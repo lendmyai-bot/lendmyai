@@ -22,7 +22,7 @@ const json = (status: number, data: unknown, headers: Record<string, string> = {
   new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store", ...CORS, ...headers } });
 
 export function isConnectorPath(path: string): boolean {
-  return path === "/mcp" || path.startsWith("/oauth/") || path.startsWith("/.well-known/oauth-");
+  return path === "/mcp" || path === "/api/connector" || path.startsWith("/oauth/") || path.startsWith("/.well-known/oauth-");
 }
 
 export async function connector(req: Request, url: URL, env: ConnectorEnv): Promise<Response> {
@@ -43,6 +43,11 @@ export async function connector(req: Request, url: URL, env: ConnectorEnv): Prom
     }
     if (path === "/oauth/authorize") return await authorize(req, url, env);
     if (path === "/mcp") return await mcp(req, origin, env);
+    if (path === "/api/connector") {
+      // Lets lendmyai.com know this browser finished connecting Claude, so the site can guide setup itself.
+      const known = await unseal<Contributor>(env.SESSION_SECRET, "contributor", cookie(req, CONTRIBUTOR_COOKIE));
+      return json(200, known ? { connected: true, name: known.n } : { connected: false });
+    }
     return json(404, { error: "not_found" });
   } catch (e) {
     if (e instanceof OAuthError) return json(e.status, { error: e.code, error_description: e.message });
@@ -83,7 +88,7 @@ async function authorize(req: Request, url: URL, env: ConnectorEnv): Promise<Res
   }
   const location = await issueCode(secret, ar, who);
   const headers = new Headers({ Location: location });
-  headers.append("Set-Cookie", `${CONTRIBUTOR_COOKIE}=${await seal(secret, "contributor", who)}; Path=/oauth; HttpOnly; Secure; SameSite=Lax; Max-Age=${365 * 86400}`);
+  headers.append("Set-Cookie", `${CONTRIBUTOR_COOKIE}=${await seal(secret, "contributor", who)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${365 * 86400}`);
   return new Response(null, { status: 302, headers });
 }
 
