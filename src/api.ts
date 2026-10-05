@@ -1,6 +1,9 @@
 import { GitHubError, api, isAnonymous, me, postComment } from "./github.js";
 import { REPO_TOPIC, TASK_LABEL, marker, parseMarker, stripMarker } from "./protocol.js";
-import { listTasks, loadTask, maintainerNotes } from "./tasks.js";
+import {
+  branchFor, buildCloudPrompt, checkWorkable, claim, claudeCodeUrl, findPushedWork, headRepo, postHandoff, prepareBranch, release, submitPullRequest,
+} from "./contribute.js";
+import { listTasks, loadTask, maintainerNotes, type Task } from "./tasks.js";
 
 // JSON API shared by the local app (src/server.ts) and the website
 // (worker/worker.ts). Everything here only talks to GitHub, so it runs in both
@@ -35,6 +38,24 @@ export function errorResponse(e: unknown): { status: number; error: string } {
 }
 
 export const refOf = (o: string, r: string, n: string | number) => `${o}/${r}#${n}`;
+
+const CLOUD_AGENT = "Claude (cloud)";
+
+/** The signed-in user's own cloud claim on a task, or a 400 if they don't hold one. */
+async function myCloudClaim(o: string, r: string, n: string) {
+  const [login, task] = await Promise.all([me(), loadTask(o, r, Number(n))]);
+  const s = task.state;
+  if (s.kind !== "claimed" || s.user !== login || !s.repo) throw new HttpError(400, "You're not working on this task right now.");
+  return { login, task, head: s.repo, since: s.since };
+}
+
+/** Lets the signed-in holder of a cloud claim reopen Claude with the same task. */
+async function cloudSession(task: Task) {
+  const s = task.state;
+  if (s.kind !== "claimed" || !s.repo || s.user !== (await me())) return undefined;
+  const branch = branchFor(task);
+  return { head: s.repo, branch, claudeUrl: claudeCodeUrl(buildCloudPrompt(task, s.repo, branch), s.repo) };
+}
 
 // A project is a public repo with the lendmyai topic; its tasks are its open
 // issues labeled agent-task.
@@ -107,8 +128,48 @@ export const sharedRoutes: Route[] = [
       canPush: !isAnonymous() && task.canPush,
       notes: maintainerNotes(task),
       events,
+      cloud: isAnonymous() ? undefined : await cloudSession(task),
     };
   }, { public: true }),
+
+  // ---------- lending your AI through Claude Code in the cloud ----------
+
+  route("POST", "/api/tasks/:owner/:repo/:n/start", async ([o, r, n]) => {
+    const [login, task] = await Promise.all([me(), loadTask(o, r, Number(n))]);
+    await checkWorkable(task, login).catch((e) => {
+      throw new HttpError(400, e.message);
+    });
+    const head = await headRepo(task);
+    const branch = await prepareBranch(task, head, login);
+    await claim(task, login, CLOUD_AGENT, head);
+    return { head, branch, claudeUrl: claudeCodeUrl(buildCloudPrompt(task, head, branch), head) };
+  }),
+
+  route("GET", "/api/tasks/:owner/:repo/:n/work", async ([o, r, n]) => {
+    const { task, head, since } = await myCloudClaim(o, r, n);
+    return { work: (await findPushedWork(task, head, since)) ?? null };
+  }),
+
+  route("POST", "/api/tasks/:owner/:repo/:n/submit", async ([o, r, n]) => {
+    const { task, head, since, login } = await myCloudClaim(o, r, n);
+    const work = await findPushedWork(task, head, since);
+    if (!work) throw new HttpError(400, "Claude hasn't saved any changes yet. Wait until Claude says it's done, then try again.");
+    const note = `### What changed\n${work.commits.map((c) => `- ${c}`).join("\n")}`;
+    const pr = await submitPullRequest(task, head, work.branch, login, CLOUD_AGENT, note);
+    return { prUrl: pr.html_url, pr: pr.number };
+  }),
+
+  route("POST", "/api/tasks/:owner/:repo/:n/giveup", async ([o, r, n]) => {
+    const { task, head, since, login } = await myCloudClaim(o, r, n);
+    const work = await findPushedWork(task, head, since);
+    if (work) {
+      const note = `Unfinished work so far:\n${work.commits.map((c) => `- ${c}`).join("\n")}`;
+      await postHandoff(task, login, CLOUD_AGENT, head, work.branch, note);
+      return { handedOff: true };
+    }
+    await release(task, login, "gave up");
+    return { handedOff: false };
+  }),
 
   route("POST", "/api/tasks/:owner/:repo/:n/release", async ([o, r, n]) => {
     const [login, task] = await Promise.all([me(), loadTask(o, r, Number(n))]);

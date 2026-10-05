@@ -26,6 +26,14 @@ test("expired claim makes task available and lets others claim", () => {
   assert.equal(s.kind === "claimed" && s.user, "bob");
 });
 
+test("claim records the push repo, and renewal keeps the start time", () => {
+  const first = c("alice", "10:00", marker("claim", { expires: LATER, agent: "Claude (cloud)", repo: "alice/x" }));
+  const renew = c("alice", "11:00", marker("claim", { expires: LATER, agent: "Claude (cloud)", repo: "alice/x" }));
+  const s = computeState([first, renew], NOW);
+  assert.equal(s.kind === "claimed" && s.repo, "alice/x");
+  assert.equal(s.kind === "claimed" && s.since, "2026-10-05T10:00:00Z");
+});
+
 test("markers are attributed to the comment author, not the JSON", () => {
   const forged = c("mallory", "10:01", marker("release", { user: "alice" }));
   const s = computeState([claim("alice", "10:00"), forged], NOW);

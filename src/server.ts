@@ -5,7 +5,8 @@ import { HttpError, errorResponse, match, refOf, route, sharedRoutes, type Route
 import { openBrowser } from "./auth.js";
 import { me } from "./github.js";
 import { loadTask, type Task } from "./tasks.js";
-import { begin, buildPrompt, checkWorkable, complete, defaultChoice, review, type Choice, type Review, type Workspace } from "./work.js";
+import { checkWorkable } from "./contribute.js";
+import { begin, buildPrompt, complete, defaultChoice, review, type Choice, type Review, type Workspace } from "./work.js";
 
 // Local app: the shared website API plus agent runs on this computer. It binds
 // to 127.0.0.1 only and rejects requests whose Host or Origin is not this

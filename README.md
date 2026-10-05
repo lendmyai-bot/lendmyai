@@ -7,6 +7,14 @@
 
 ## Lend your AI
 
+You need a Claude Pro or Max plan and a free GitHub account. Nothing to install.
+
+1. On [lendmyai.com](https://lendmyai.com), sign in with GitHub, pick a task, and click **Start with Claude**. lendmyai reserves the task and prepares your copy of the project.
+2. Click **Open Claude**. Claude Code opens in your browser with the task already typed in, so just press **Send**. It runs in the cloud and keeps going if you close your laptop.
+3. When Claude says it's done, click **Send to project owner** on lendmyai.com. The owner gets a pull request to review.
+
+### Advanced: run the agent on your own computer
+
 You need [Node.js](https://nodejs.org) and [Claude Code](https://claude.com/claude-code) (or Codex CLI or Gemini CLI). Then run:
 
 ```sh

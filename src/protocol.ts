@@ -27,7 +27,11 @@ export interface Handoff extends HandoffData { user: string; note: string; at: s
 
 export type TaskState =
   | { kind: "available"; handoff?: Handoff }
-  | { kind: "claimed"; user: string; expires: string; agent: string; commentId: number; handoff?: Handoff }
+  | {
+      kind: "claimed"; user: string; expires: string; agent: string; commentId: number;
+      /** When the claim was made, and the owner/repo the contributor pushes to (website claims only). */
+      since: string; repo?: string; handoff?: Handoff;
+    }
   | { kind: "in-review"; user: string; pr: number; handoff?: Handoff };
 
 const MARKER_RE = /<!--\s*lendmyai:(claim|release|handoff|done)\s+(\{.*?\})\s*-->/s;
@@ -83,7 +87,10 @@ export function computeState(
         // A claim only counts if nobody else holds a live claim at that moment.
         if (state.kind === "in-review" && prState(state.pr) !== "closed") break;
         if (claimLive && holder !== c.user) break;
-        state = { kind: "claimed", user: c.user, expires, agent: String(m.data.agent ?? "unknown"), commentId: c.id };
+        // A renewal by the holder keeps the original start time.
+        const since: string = state.kind === "claimed" && holder === c.user && claimLive ? state.since : c.createdAt;
+        const repo = typeof m.data.repo === "string" ? m.data.repo : undefined;
+        state = { kind: "claimed", user: c.user, expires, agent: String(m.data.agent ?? "unknown"), commentId: c.id, since, repo };
         break;
       }
       case "release":

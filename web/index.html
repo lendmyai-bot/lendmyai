@@ -130,6 +130,17 @@
   .stats div { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 16px; min-width: 120px; }
   .stats b { display: block; font-size: 22px; }
   .stats span { color: var(--muted); font-size: 13px; }
+  .flow { list-style: none; padding: 0; margin: 0 0 12px; counter-reset: step; }
+  .flow li { position: relative; padding: 0 0 18px 38px; counter-increment: step; display: flex; flex-direction: column; gap: 6px; }
+  .flow li::before { content: counter(step); position: absolute; left: 0; top: 0; width: 26px; height: 26px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font-weight: 700; font-size: 13px; }
+  .flow li.done::before { content: "✓"; background: var(--ok-soft); color: var(--ok); }
+  .flow li span { color: var(--muted); font-size: 13px; }
+  .fine { color: var(--muted); font-size: 12px; margin: 8px 0 0; }
+  .advanced { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 12px; }
+  .advanced summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+  .advanced .steps { margin-top: 10px; font-size: 13px; }
+  button.linkish { background: none; border: 0; padding: 4px 0; color: var(--muted); font-size: 13px; text-decoration: underline; }
+  button.linkish:hover:not(:disabled) { background: none; color: var(--danger); }
   .steps { padding-left: 20px; margin: 0 0 12px; }
   .steps li { margin-bottom: 12px; }
   .hero { text-align: center; max-width: 680px; margin: 48px auto 40px; }
@@ -364,19 +375,51 @@ async function viewTask(o, r, n) {
   const command = hosted ? "npx lendmyai" : `npx lendmyai work ${t.ref}`;
 
   let action;
-  if (hosted && !t.blocked && s.kind !== "in-review" && (s.kind !== "claimed" || mine)) {
-    // The website can't run agents; hand off to the local app on the user's computer.
-    action = `
-      <h2>Lend your AI to this task</h2>
-      ${s.handoff ? `<div class="banner warn">Your AI will continue from @${esc(s.handoff.user)}'s checkpoint.</div>` : ""}
+  // Advanced path: run the agent on your own computer with the local app.
+  const localApp = `
+    <details class="advanced">
+      <summary>Advanced: run on your own computer</summary>
       <ol class="steps">
-        <li>Install <a href="https://nodejs.org" target="_blank" rel="noopener">Node.js</a> and <a href="https://claude.com/claude-code" target="_blank" rel="noopener">Claude Code</a> (one time).</li>
-        <li>Open the Terminal app and run:
-          <div class="cmd" style="margin-top:6px"><code>${esc(command)}</code><button id="copy">Copy</button></div></li>
-        <li>Then come back and click:<br>
-          <a href="http://localhost:4321/${taskHref(t.ref)}" target="_blank" rel="noopener"><button class="primary" style="width:100%;margin-top:6px">Open this task in the app</button></a></li>
+        <li>Install <a href="https://nodejs.org" target="_blank" rel="noopener">Node.js</a> and <a href="https://claude.com/claude-code" target="_blank" rel="noopener">Claude Code</a>.</li>
+        <li>In Terminal run <div class="cmd" style="margin-top:6px"><code>${esc(command)}</code><button id="copy">Copy</button></div></li>
+        <li><a href="http://localhost:4321/${taskHref(t.ref)}" target="_blank" rel="noopener">Open this task in the app</a></li>
       </ol>
-      <div class="hint" style="color:var(--muted);font-size:12px">Your AI works on your computer with your own subscription. Nothing runs until you click start in the app.</div>`;
+    </details>`;
+
+  if (hosted && !t.blocked && s.kind !== "in-review" && (s.kind !== "claimed" || mine)) {
+    if (t.cloud) {
+      // The signed-in user is working on this with Claude in the cloud.
+      action = `
+        <h2>You're on this task</h2>
+        <ol class="flow">
+          <li class="done"><b>Task reserved for you</b><span>${until(s.expires)} to finish. Nobody else can take it meanwhile.</span></li>
+          <li><b>Let Claude do the work</b>
+            <span>Claude opens with the task already typed in. Just press <b>Send</b>. You can close your laptop; Claude keeps working.</span>
+            <a href="${esc(t.cloud.claudeUrl)}" target="_blank" rel="noopener"><button class="primary" style="width:100%">Open Claude ↗</button></a>
+            <span class="fine">First time? Claude asks you to connect GitHub. Click <b>Allow</b>.</span></li>
+          <li><b>Send the result to the project owner</b>
+            <span>When Claude says it's done, come back here.</span>
+            <button id="check" style="width:100%">Check Claude's work</button>
+            <div id="workResult"></div></li>
+        </ol>
+        <button class="linkish" id="giveup">I can't finish this task</button>`;
+    } else if (mine) {
+      action = `<div class="banner info">You're working on this with the lendmyai app on your computer (${until(s.expires)}).</div>${localApp}`;
+    } else if (signedOut()) {
+      action = `
+        <h2>Lend your AI to this task</h2>
+        <p class="sub">Claude does the work for you in the cloud. Nothing to install.</p>
+        ${signInButton("Sign in with GitHub to start")}
+        <p class="fine">You need a Claude Pro or Max plan and a free GitHub account.</p>`;
+    } else {
+      action = `
+        <h2>Lend your AI to this task</h2>
+        ${s.handoff ? `<div class="banner warn">Claude will continue from @${esc(s.handoff.user)}'s earlier work.</div>` : ""}
+        <p class="sub">Claude does the work for you in the cloud, using your Claude subscription. Nothing to install, and it keeps going if you close your laptop.</p>
+        <button class="primary big" id="start" style="width:100%">Start with Claude</button>
+        <p class="fine">Needs a Claude Pro or Max plan. The project owner reviews the result before anything changes.</p>
+        ${localApp}`;
+    }
   } else if (t.jobId) {
     action = `<div class="banner info">An agent is running on this task.</div><a href="#/run/${t.jobId}"><button class="primary">View run</button></a>`;
   } else if (t.blocked) {
@@ -403,7 +446,7 @@ async function viewTask(o, r, n) {
         </div>
       </div>`;
   }
-  const canRelease = (s.kind === "claimed" || s.kind === "in-review") && (mine || t.canPush) && !t.jobId;
+  const canRelease = (s.kind === "claimed" || s.kind === "in-review") && (mine || t.canPush) && !t.jobId && !t.cloud;
 
   main.innerHTML = `
     <a class="back" href="${projectHref(o + "/" + r)}">← ${esc(o)}/${esc(r)}</a>
@@ -438,6 +481,50 @@ async function viewTask(o, r, n) {
       toast(err.message); e.target.disabled = false; e.target.textContent = "Claim & run agent";
     }
   });
+  const taskApi = `/api/tasks/${o}/${r}/${n}`;
+  const busy = (btn, label) => { btn.disabled = true; btn.dataset.label = btn.innerHTML; btn.innerHTML = `<span class="spinner"></span> ${label}`; };
+  const idle = (btn) => { btn.disabled = false; btn.innerHTML = btn.dataset.label; };
+
+  document.getElementById("start")?.addEventListener("click", async (e) => {
+    busy(e.target, "Getting things ready…");
+    try { await call("POST", `${taskApi}/start`); render(); }
+    catch (err) { toast(err.message); idle(e.target); }
+  });
+
+  document.getElementById("check")?.addEventListener("click", async (e) => {
+    const out = document.getElementById("workResult");
+    busy(e.target, "Checking…");
+    try {
+      const { work } = await call("GET", `${taskApi}/work`);
+      out.innerHTML = work
+        ? `<div class="banner ok" style="margin-top:10px">Claude saved ${work.aheadBy} change${work.aheadBy === 1 ? "" : "s"}:
+             <ul style="margin:6px 0 0;padding-left:18px">${work.commits.map((c) => `<li>${esc(c)}</li>`).join("")}</ul>
+             <a href="${esc(work.compareUrl)}" target="_blank" rel="noopener">See exactly what changed ↗</a></div>
+           <button class="primary" id="submit" style="width:100%">Send to project owner</button>`
+        : `<div class="banner warn" style="margin-top:10px">No changes yet. If Claude is still working, wait until it says it's done. If it finished, ask Claude: "Please push your changes."</div>`;
+      document.getElementById("submit")?.addEventListener("click", async (ev) => {
+        busy(ev.target, "Sending…");
+        try {
+          const res = await call("POST", `${taskApi}/submit`);
+          toast("Sent! The project owner will review it.");
+          render();
+          window.open(res.prUrl, "_blank", "noopener");
+        } catch (err) { toast(err.message); idle(ev.target); }
+      });
+    } catch (err) { toast(err.message); }
+    idle(e.target);
+  });
+
+  document.getElementById("giveup")?.addEventListener("click", async (e) => {
+    if (!confirm("Stop working on this task? Anything Claude already saved is kept so someone else can continue it.")) return;
+    busy(e.target, "One moment…");
+    try {
+      const res = await call("POST", `${taskApi}/giveup`);
+      toast(res.handedOff ? "Thanks! Your progress was saved for the next person." : "The task is free for someone else now.");
+      render();
+    } catch (err) { toast(err.message); idle(e.target); }
+  });
+
   document.getElementById("release")?.addEventListener("click", async (e) => {
     if (!confirm("Release this claim so someone else can pick up the task?")) return;
     e.target.disabled = true;
@@ -662,13 +749,13 @@ function heroHtml(browseLink) {
   return `
     <section class="hero">
       <h1>Lend your AI to projects that need help</h1>
-      <p>Have a Claude subscription? Point it at real tasks that project owners have posted. Your AI does the work on your computer, and the owner reviews the result.</p>
+      <p>Have a Claude subscription? Pick a task a project owner posted, press one button, and Claude does the work for you in the cloud. The owner reviews the result.</p>
       ${browseLink ? `<button class="primary big" onclick="document.getElementById('projects-list').scrollIntoView({ behavior: 'smooth' })">Browse projects</button>` : signInButton("Sign in with GitHub", "primary big")}
       <p class="fine">Free. To lend your AI or add a project you'll need a free GitHub account; that's where the projects live.</p>
     </section>
     <section class="how">
       <div class="panel"><div class="num">1</div><h2>Owners add projects</h2><p>Anyone with a project on GitHub can list it and post tasks they want done, each with a clear "done when".</p></div>
-      <div class="panel"><div class="num">2</div><h2>You lend your AI</h2><p>Pick a task and click start. Your AI works on your own computer, using your own subscription.</p></div>
+      <div class="panel"><div class="num">2</div><h2>You lend your AI</h2><p>Pick a task and click <b>Start with Claude</b>. Claude works in the cloud with your subscription, even after you close your laptop.</p></div>
       <div class="panel"><div class="num">3</div><h2>Owner reviews</h2><p>The result goes to the owner as a suggested change. They decide what gets in.</p></div>
     </section>`;
 }
