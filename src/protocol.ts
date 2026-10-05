@@ -7,6 +7,14 @@ export const TASK_LABEL = "agent-task";
 export const REPO_TOPIC = "lendmyai";
 export const CLAIM_HOURS = 24;
 
+/**
+ * GitHub account that acts for contributors without GitHub (they connect
+ * through Claude). Its markers count for the contributor named in the marker,
+ * as "lendmyai:<id>"; markers from anyone else always count for their author.
+ */
+export const BOT_LOGIN = "lendmyai-bot";
+const DELEGATED_ID = /^lendmyai:[a-z0-9]{6,32}$/;
+
 const TRUSTED_ASSOCIATIONS = new Set(["OWNER", "MEMBER", "COLLABORATOR"]);
 
 export type MarkerKind = "claim" | "release" | "handoff" | "done";
@@ -23,16 +31,16 @@ export interface Comment {
   body: string;
 }
 
-export interface Handoff extends HandoffData { user: string; note: string; at: string }
+export interface Handoff extends HandoffData { user: string; name?: string; note: string; at: string }
 
 export type TaskState =
   | { kind: "available"; handoff?: Handoff }
   | {
-      kind: "claimed"; user: string; expires: string; agent: string; commentId: number;
+      kind: "claimed"; user: string; name?: string; expires: string; agent: string; commentId: number;
       /** When the claim was made, and the owner/repo the contributor pushes to (website claims only). */
       since: string; repo?: string; handoff?: Handoff;
     }
-  | { kind: "in-review"; user: string; pr: number; handoff?: Handoff };
+  | { kind: "in-review"; user: string; name?: string; pr: number; handoff?: Handoff };
 
 const MARKER_RE = /<!--\s*lendmyai:(claim|release|handoff|done)\s+(\{.*?\})\s*-->/s;
 
@@ -48,6 +56,14 @@ export function parseMarker(body: string): { kind: MarkerKind; data: any } | nul
   } catch {
     return null;
   }
+}
+
+/** Who a marker comment acts for: the contributor named by the bot, or the comment author. */
+export function actorOf(c: Comment, data: any): { user: string; name?: string } {
+  if (c.user === BOT_LOGIN && typeof data?.by === "string" && DELEGATED_ID.test(data.by)) {
+    return { user: data.by, name: typeof data.name === "string" ? data.name.slice(0, 40) : undefined };
+  }
+  return { user: c.user };
 }
 
 export function isTrusted(association: string): boolean {
@@ -79,6 +95,7 @@ export function computeState(
     const at = new Date(c.createdAt);
     const claimLive = state.kind === "claimed" && new Date(state.expires) > at;
     const holder: string | undefined = state.kind === "available" ? undefined : state.user;
+    const { user: actor, name } = actorOf(c, m.data);
 
     switch (m.kind) {
       case "claim": {
@@ -86,26 +103,26 @@ export function computeState(
         if (Number.isNaN(Date.parse(expires))) break;
         // A claim only counts if nobody else holds a live claim at that moment.
         if (state.kind === "in-review" && prState(state.pr) !== "closed") break;
-        if (claimLive && holder !== c.user) break;
+        if (claimLive && holder !== actor) break;
         // A renewal by the holder keeps the original start time.
-        const since: string = state.kind === "claimed" && holder === c.user && claimLive ? state.since : c.createdAt;
+        const since: string = state.kind === "claimed" && holder === actor && claimLive ? state.since : c.createdAt;
         const repo = typeof m.data.repo === "string" ? m.data.repo : undefined;
-        state = { kind: "claimed", user: c.user, expires, agent: String(m.data.agent ?? "unknown"), commentId: c.id, since, repo };
+        state = { kind: "claimed", user: actor, name, expires, agent: String(m.data.agent ?? "unknown"), commentId: c.id, since, repo };
         break;
       }
       case "release":
         // The holder, or a maintainer, can free the task.
-        if (holder && (holder === c.user || isTrusted(c.association))) state = { kind: "available" };
+        if (holder && (holder === actor || isTrusted(c.association))) state = { kind: "available" };
         break;
       case "handoff":
-        if (state.kind === "claimed" && holder === c.user && m.data.repo && m.data.branch) {
-          handoff = { user: c.user, repo: String(m.data.repo), branch: String(m.data.branch), note: stripMarker(c.body), at: c.createdAt };
+        if (state.kind === "claimed" && holder === actor && m.data.repo && m.data.branch) {
+          handoff = { user: actor, name, repo: String(m.data.repo), branch: String(m.data.branch), note: stripMarker(c.body), at: c.createdAt };
           state = { kind: "available" };
         }
         break;
       case "done":
-        if (state.kind === "claimed" && holder === c.user && Number.isInteger(m.data.pr)) {
-          state = { kind: "in-review", user: c.user, pr: m.data.pr };
+        if (state.kind === "claimed" && holder === actor && Number.isInteger(m.data.pr)) {
+          state = { kind: "in-review", user: actor, name, pr: m.data.pr };
         }
         break;
     }

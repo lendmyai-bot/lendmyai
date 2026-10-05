@@ -1,5 +1,5 @@
 import { GitHubError, api, isAnonymous, me, postComment } from "./github.js";
-import { REPO_TOPIC, TASK_LABEL, marker, parseMarker, stripMarker } from "./protocol.js";
+import { REPO_TOPIC, TASK_LABEL, actorOf, marker, parseMarker, stripMarker } from "./protocol.js";
 import {
   branchFor, buildCloudPrompt, checkWorkable, claim, claudeCodeUrl, findPushedWork, headRepo, postHandoff, prepareBranch, release, submitPullRequest,
 } from "./contribute.js";
@@ -115,7 +115,7 @@ export const sharedRoutes: Route[] = [
     const task = await loadTask(o, r, Number(n));
     const events = task.comments.flatMap((c) => {
       const mk = parseMarker(c.body);
-      return mk ? [{ kind: mk.kind, user: c.user, at: c.createdAt, text: stripMarker(c.body), data: mk.data }] : [];
+      return mk ? [{ kind: mk.kind, ...actorOf(c, mk.data), at: c.createdAt, text: stripMarker(c.body), data: mk.data }] : [];
     });
     return {
       ref: refOf(o, r, n),

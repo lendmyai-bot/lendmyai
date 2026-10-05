@@ -1,5 +1,6 @@
 import { HttpError, errorResponse, match, route, sharedRoutes, type Route } from "../src/api.js";
 import { me, withToken } from "../src/github.js";
+import { connector, isConnectorPath } from "./connector.js";
 
 // lendmyai.com: Cloudflare Worker serving the website (static files in web/)
 // and the shared JSON API. Users sign in with GitHub (OAuth web flow); their
@@ -14,6 +15,8 @@ interface Env {
   SESSION_SECRET: string;
   /** Read-only token (public repositories only) used to show projects and tasks to signed-out visitors. */
   GITHUB_PUBLIC_TOKEN?: string;
+  /** Classic token (public_repo) of the lendmyai-bot account, which acts for contributors without GitHub. */
+  BOT_GITHUB_TOKEN?: string;
 }
 
 /** Seconds that pages for signed-out visitors are cached, to stay within GitHub's rate limits. */
@@ -32,6 +35,7 @@ const hostedRoutes: Route[] = [
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
+    if (isConnectorPath(url.pathname)) return connector(req, url, env);
     if (url.pathname.startsWith("/auth/")) return auth(req, url, env);
     if (url.pathname.startsWith("/api/")) return apiRequest(req, url, env);
     return env.ASSETS.fetch(req);

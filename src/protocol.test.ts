@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { TASK_LABEL, checkApproval, computeState, marker, parseIssueRef, type ApprovalIssue, type Comment } from "./protocol.js";
+import { BOT_LOGIN, TASK_LABEL, checkApproval, computeState, marker, parseIssueRef, type ApprovalIssue, type Comment } from "./protocol.js";
 
 const NOW = new Date("2026-10-05T12:00:00Z");
 const LATER = "2026-10-06T12:00:00Z";
@@ -32,6 +32,25 @@ test("claim records the push repo, and renewal keeps the start time", () => {
   const s = computeState([first, renew], NOW);
   assert.equal(s.kind === "claimed" && s.repo, "alice/x");
   assert.equal(s.kind === "claimed" && s.since, "2026-10-05T10:00:00Z");
+});
+
+test("bot markers count for the contributor they name", () => {
+  const botClaim = (by: string, at: string) => c(BOT_LOGIN, at, marker("claim", { expires: LATER, agent: "Claude", by, name: "Jane" }));
+  const s = computeState([botClaim("lendmyai:ab12cd34", "10:00")], NOW);
+  assert.equal(s.kind === "claimed" && s.user, "lendmyai:ab12cd34");
+  assert.equal(s.kind === "claimed" && s.name, "Jane");
+  // A second contributor can't take a live claim, even through the same bot account.
+  const raced = computeState([botClaim("lendmyai:ab12cd34", "10:00"), botClaim("lendmyai:ffff0000", "10:01")], NOW);
+  assert.equal(raced.kind === "claimed" && raced.user, "lendmyai:ab12cd34");
+  // Only the same contributor can hand off.
+  const other = c(BOT_LOGIN, "10:02", marker("handoff", { repo: "lendmyai-bot/x", branch: "b", by: "lendmyai:ffff0000" }));
+  assert.equal(computeState([botClaim("lendmyai:ab12cd34", "10:00"), other], NOW).kind, "claimed");
+});
+
+test("only the bot can act for contributors", () => {
+  const forged = c("mallory", "10:00", marker("claim", { expires: LATER, agent: "x", by: "lendmyai:ab12cd34" }));
+  const s = computeState([forged], NOW);
+  assert.equal(s.kind === "claimed" && s.user, "mallory");
 });
 
 test("markers are attributed to the comment author, not the JSON", () => {

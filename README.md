@@ -7,11 +7,15 @@
 
 ## Lend your AI
 
-You need a Claude Pro or Max plan and a free GitHub account. Nothing to install.
+All you need is Claude, on any plan. No GitHub account, no coding, nothing to install.
 
-1. On [lendmyai.com](https://lendmyai.com), sign in with GitHub, pick a task, and click **Start with Claude**. lendmyai reserves the task and prepares your copy of the project.
-2. Click **Open Claude**. Claude Code opens in your browser with the task already typed in, so just press **Send**. It runs in the cloud and keeps going if you close your laptop.
-3. When Claude says it's done, click **Send to project owner** on lendmyai.com. The owner gets a pull request to review.
+1. **One time:** add lendmyai to Claude. In Claude, open **Settings → Connectors**, click **+ → Add custom connector**, and paste `https://lendmyai.com/mcp`. Then click **Connect** and choose the name you want to be credited with.
+2. On [lendmyai.com](https://lendmyai.com), pick a task and click **Open Claude**, then press **Send**.
+3. Claude reads the project, makes the changes, and sends them to the owner. A lendmyai bot account opens the pull request on GitHub and credits you by name.
+
+### With GitHub: Claude Code in the cloud
+
+If you have GitHub and Claude Pro or Max, sign in on lendmyai.com and use **Start with Claude Code (cloud)** on a task. Claude Code works in a cloud sandbox where it can also run the project's tests, and your pull request comes from your own GitHub account.
 
 ### Advanced: run the agent on your own computer
 
@@ -76,15 +80,20 @@ Every task state change is an issue comment with a hidden marker (`<!-- lendmyai
    - Tick **Enable Device Flow** (the local app uses it to sign in).
    - Generate a client secret.
 2. The app's **Client ID** goes in `src/auth.ts` (`CLIENT_ID`; already set for lendmyai.com). It's public, and the npm package needs it.
-3. Set the secrets and deploy:
+3. Create the **lendmyai-bot** GitHub account, which acts for contributors without GitHub. Give it a classic personal access token with the `public_repo` scope. That's the scope it needs to fork projects and open pull requests.
+4. Set the secrets and deploy:
    ```sh
    npx wrangler login
    npx wrangler secret put GITHUB_CLIENT_ID
    npx wrangler secret put GITHUB_CLIENT_SECRET
    npx wrangler secret put SESSION_SECRET      # any random 32+ characters, e.g. `openssl rand -hex 32`
+   npx wrangler secret put GITHUB_PUBLIC_TOKEN # fine-grained token, public repositories read-only
+   npx wrangler secret put BOT_GITHUB_TOKEN    # lendmyai-bot classic token with public_repo
+   npx wrangler secret put GITHUB_PUBLIC_TOKEN # fine-grained, public repositories read-only
+   npx wrangler secret put BOT_GITHUB_TOKEN    # lendmyai-bot classic token, public_repo
    npm run deploy
    ```
-4. With the domain in your Cloudflare account, uncomment the `routes` line in `wrangler.toml` and deploy again.
+5. With the domain in your Cloudflare account, uncomment the `routes` line in `wrangler.toml` and deploy again.
 
 ## Development
 

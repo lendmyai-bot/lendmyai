@@ -1,5 +1,5 @@
 import { GitHubError, api, deleteComment, getComments, postComment } from "./github.js";
-import { CLAIM_HOURS, TASK_LABEL, marker } from "./protocol.js";
+import { BOT_LOGIN, CLAIM_HOURS, TASK_LABEL, marker } from "./protocol.js";
 import { maintainerNotes, stateOf, type Task } from "./tasks.js";
 
 // Contribution steps shared by the CLI, the local app and the website. They
@@ -7,55 +7,80 @@ import { maintainerNotes, stateOf, type Task } from "./tasks.js";
 // Local git work lives in work.ts; this file never touches the filesystem.
 
 export const branchFor = (task: Task) => `lendmyai/issue-${task.number}`;
+
+/**
+ * Who is contributing: a GitHub login, or a contributor without GitHub
+ * ("lendmyai:<id>") whose actions the bot account performs.
+ */
+export interface Who { id: string; name?: string }
+type WhoArg = string | Who;
+const norm = (w: WhoArg): Who => (typeof w === "string" ? { id: w } : w);
+const isDelegated = (w: Who) => w.id.startsWith("lendmyai:");
+/** How a contributor is named in GitHub comments and PRs. */
+export const mention = (w: Who) => (isDelegated(w) ? `**${w.name ?? "A contributor"}** (via lendmyai, no GitHub account)` : `@${w.id}`);
+/** Marker fields that tell the protocol which contributor the bot acted for. */
+const actingFor = (w: Who) => (isDelegated(w) ? { by: w.id, name: w.name } : {});
 const upstreamOf = (task: Task) => `${task.owner}/${task.repo}`;
 
 /** Throws if `login` may not start (or resume) this task. */
-export async function checkWorkable(task: Task, login: string): Promise<void> {
+export async function checkWorkable(task: Task, whoArg: WhoArg): Promise<void> {
+  const who = norm(whoArg);
   if (task.blocked) throw new Error(task.blocked);
   const s = task.state;
   if (s.kind === "in-review") throw new Error(`Task is already in review (PR #${s.pr}).`);
-  if (s.kind === "claimed" && s.user !== login) throw new Error(`Task is claimed by @${s.user} until ${s.expires}.`);
-  if (s.kind !== "claimed") await ensureNoOtherClaim(login, `${upstreamOf(task)}#${task.number}`);
+  if (s.kind === "claimed" && s.user !== who.id) throw new Error(`Someone else is working on this task until ${s.expires}.`);
+  if (s.kind !== "claimed") await ensureNoOtherClaim(who, `${upstreamOf(task)}#${task.number}`);
 }
 
-async function ensureNoOtherClaim(login: string, current: string): Promise<void> {
-  const q = `is:issue is:open label:${TASK_LABEL} commenter:${login}`;
-  const res = await api<any>("GET", `/search/issues?q=${encodeURIComponent(q)}&per_page=50`);
+async function ensureNoOtherClaim(who: Who, current: string): Promise<void> {
+  const commenter = isDelegated(who) ? `commenter:${BOT_LOGIN} "${who.id}"` : `commenter:${who.id}`;
+  const q = `is:issue is:open label:${TASK_LABEL} ${commenter}`;
+  let res: any;
+  try {
+    res = await api<any>("GET", `/search/issues?q=${encodeURIComponent(q)}&per_page=50`);
+  } catch (e) {
+    // GitHub rejects searches for accounts that have never commented (422); then there are no claims.
+    if (e instanceof GitHubError && e.status === 422) return;
+    throw e;
+  }
   for (const item of res.items) {
     const full = item.repository_url.replace("https://api.github.com/repos/", "");
     const ref = `${full}#${item.number}`;
     if (ref === current) continue;
     const [o, r] = full.split("/");
     const st = await stateOf(o, r, await getComments(o, r, item.number));
-    if (st.kind === "claimed" && st.user === login) {
+    if (st.kind === "claimed" && st.user === who.id) {
       throw new Error(`You're already working on ${ref}. Finish or give up that task first.`);
     }
   }
 }
 
 /** Posts a claim comment; claiming again as the current holder renews it. */
-export async function claim(task: Task, login: string, agent: string, repo?: string): Promise<void> {
+export async function claim(task: Task, whoArg: WhoArg, agent: string, repo?: string): Promise<void> {
+  const who = norm(whoArg);
   const expires = new Date(Date.now() + CLAIM_HOURS * 3600_000).toISOString();
   const id = await postComment(
     task.owner, task.repo, task.number,
-    `🤖 @${login} is working on this with **${agent}** (claim expires ${expires}).\n${marker("claim", { expires, agent, ...(repo ? { repo } : {}) })}`,
+    `🤖 ${mention(who)} is working on this with **${agent}** (claim expires ${expires}).\n${marker("claim", { expires, agent, ...(repo ? { repo } : {}), ...actingFor(who) })}`,
   );
   // Re-read after posting: if two people claimed at once, the earlier comment wins.
   const st = await stateOf(task.owner, task.repo, await getComments(task.owner, task.repo, task.number));
-  if (st.kind !== "claimed" || st.user !== login) {
+  if (st.kind !== "claimed" || st.user !== who.id) {
     await deleteComment(task.owner, task.repo, id);
     throw new Error("Someone else claimed this task a moment earlier.");
   }
 }
 
-export async function release(task: Task, login: string, reason: string): Promise<void> {
-  await postComment(task.owner, task.repo, task.number, `🤖 @${login} released this task (${reason}).\n${marker("release", {})}`);
+export async function release(task: Task, whoArg: WhoArg, reason: string): Promise<void> {
+  const who = norm(whoArg);
+  await postComment(task.owner, task.repo, task.number, `🤖 ${mention(who)} released this task (${reason}).\n${marker("release", actingFor(who))}`);
 }
 
-export async function postHandoff(task: Task, login: string, agent: string, head: string, branch: string, note: string): Promise<void> {
+export async function postHandoff(task: Task, whoArg: WhoArg, agent: string, head: string, branch: string, note: string): Promise<void> {
+  const who = norm(whoArg);
   await postComment(
     task.owner, task.repo, task.number,
-    `🤖 @${login} checkpointed this task (agent: ${agent}). Work so far is on \`${head}:${branch}\`; the next contributor continues from there.\n\n${note}\n${marker("handoff", { repo: head, branch })}`,
+    `🤖 ${mention(who)} checkpointed this task (agent: ${agent}). Work so far is on \`${head}:${branch}\`; the next contributor continues from there.\n\n${note}\n${marker("handoff", { repo: head, branch, ...actingFor(who) })}`,
   );
 }
 
@@ -91,11 +116,13 @@ async function branchSha(repo: string, branch: string): Promise<string | undefin
  * Makes sure the task branch exists in `head`, starting from the latest
  * checkpoint if someone handed off, otherwise from upstream's default branch.
  */
-export async function prepareBranch(task: Task, head: string, login: string): Promise<string> {
+export async function prepareBranch(task: Task, head: string, login: string, opts: { fresh?: boolean } = {}): Promise<string> {
   const branch = branchFor(task);
   const h = task.state.handoff;
   const existing = await branchSha(head, branch);
-  const resumeOther = h && h.user !== login;
+  // `fresh`: the bot's fork is shared by all contributors, so a branch left from an
+  // earlier attempt (e.g. a rejected PR) is reset unless someone handed off work.
+  const resumeOther = h ? h.user !== login : !!opts.fresh;
   if (existing && !resumeOther) return branch;
 
   const base = (h && (await branchSha(h.repo, h.branch))) ?? (await branchSha(upstreamOf(task), task.defaultBranch));
@@ -190,8 +217,9 @@ export async function findPushedWork(task: Task, head: string, since: string): P
 
 /** Opens (or reuses) the pull request and marks the task as in review. */
 export async function submitPullRequest(
-  task: Task, head: string, branch: string, login: string, agent: string, note: string,
+  task: Task, head: string, branch: string, whoArg: WhoArg, agent: string, note: string,
 ): Promise<{ number: number; html_url: string }> {
+  const who = norm(whoArg);
   const headOwner = head.split("/")[0];
   const ownFork = head !== upstreamOf(task);
   let pr: { number: number; html_url: string };
@@ -200,7 +228,7 @@ export async function submitPullRequest(
       title: task.title,
       head: `${headOwner}:${branch}`,
       base: task.defaultBranch,
-      body: `Closes #${task.number}\n\n${note}\n\n---\nAgent: **${agent}** · contributed by @${login} via [lendmyai](https://lendmyai.com)`,
+      body: `Closes #${task.number}\n\n${note}\n\n---\nAgent: **${agent}** · contributed by ${mention(who)} via [lendmyai](https://lendmyai.com)`,
       ...(ownFork ? { maintainer_can_modify: true } : {}),
     });
   } catch (e) {
@@ -210,6 +238,6 @@ export async function submitPullRequest(
     if (!existing.length) throw e;
     pr = existing[0];
   }
-  await postComment(task.owner, task.repo, task.number, `🤖 @${login} opened #${pr.number} for this task (agent: ${agent}).\n${marker("done", { pr: pr.number })}`);
+  await postComment(task.owner, task.repo, task.number, `🤖 ${mention(who)} opened #${pr.number} for this task (agent: ${agent}).\n${marker("done", { pr: pr.number, ...actingFor(who) })}`);
   return pr;
 }

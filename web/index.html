@@ -131,10 +131,13 @@
   .stats b { display: block; font-size: 22px; }
   .stats span { color: var(--muted); font-size: 13px; }
   .flow { list-style: none; padding: 0; margin: 0 0 12px; counter-reset: step; }
-  .flow li { position: relative; padding: 0 0 18px 38px; counter-increment: step; display: flex; flex-direction: column; gap: 6px; }
-  .flow li::before { content: counter(step); position: absolute; left: 0; top: 0; width: 26px; height: 26px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font-weight: 700; font-size: 13px; }
-  .flow li.done::before { content: "✓"; background: var(--ok-soft); color: var(--ok); }
-  .flow li span { color: var(--muted); font-size: 13px; }
+  .flow > li { position: relative; padding: 0 0 18px 38px; counter-increment: step; display: flex; flex-direction: column; gap: 6px; }
+  .flow > li::before { content: counter(step); position: absolute; left: 0; top: 0; width: 26px; height: 26px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font-weight: 700; font-size: 13px; }
+  .flow > li.done::before { content: "✓"; background: var(--ok-soft); color: var(--ok); }
+  .flow > li > span { color: var(--muted); font-size: 13px; }
+  .flow > li > button.linkish { align-self: flex-start; }
+  .flow .steps { font-size: 13px; padding-left: 18px; margin: 4px 0 10px; }
+  .flow .steps li { margin-bottom: 8px; }
   .fine { color: var(--muted); font-size: 12px; margin: 8px 0 0; }
   .advanced { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 12px; }
   .advanced summary { cursor: pointer; color: var(--muted); font-size: 13px; }
@@ -219,13 +222,16 @@ const ago = (iso) => {
   return `${Math.floor(s / 86400)}d ago`;
 };
 const until = (iso) => { const h = (new Date(iso) - Date.now()) / 3600000; return h < 1 ? `${Math.max(1, Math.round(h * 60))}m left` : `${Math.round(h)}h left`; };
+/** Contributors who connect through Claude have a display name instead of a GitHub login. */
+const personName = (x) => (x.name ? x.name : "@" + x.user);
+const CONNECTOR_URL = "https://lendmyai.com/mcp";
 const splitRef = (ref) => { const m = /^(.+?)\/(.+?)#(\d+)$/.exec(ref); return m ? [m[1], m[2], m[3]] : []; };
 const taskHref = (ref) => `#/task/${splitRef(ref).join("/")}`;
 
 function statePill(s) {
-  if (s.kind === "available") return s.handoff ? `<span class="pill warn">resumable · @${esc(s.handoff.user)}</span>` : `<span class="pill ok">available</span>`;
-  if (s.kind === "claimed") return `<span class="pill accent">@${esc(s.user)} · ${esc(s.agent)} · ${until(s.expires)}</span>`;
-  return `<span class="pill">PR #${esc(s.pr)} · @${esc(s.user)}</span>`;
+  if (s.kind === "available") return s.handoff ? `<span class="pill warn">resumable · ${esc(personName(s.handoff))}</span>` : `<span class="pill ok">available</span>`;
+  if (s.kind === "claimed") return `<span class="pill accent">${esc(personName(s))} · ${esc(s.agent)} · ${until(s.expires)}</span>`;
+  return `<span class="pill">PR #${esc(s.pr)} · ${esc(personName(s))}</span>`;
 }
 
 function errorBox(e) { return `<div class="banner danger">${esc(e.message || e)}</div>`; }
@@ -405,19 +411,39 @@ async function viewTask(o, r, n) {
         <button class="linkish" id="giveup">I can't finish this task</button>`;
     } else if (mine) {
       action = `<div class="banner info">You're working on this with the lendmyai app on your computer (${until(s.expires)}).</div>${localApp}`;
-    } else if (signedOut()) {
-      action = `
-        <h2>Lend your AI to this task</h2>
-        <p class="sub">Claude does the work for you in the cloud. Nothing to install.</p>
-        ${signInButton("Sign in with GitHub to start")}
-        <p class="fine">You need a Claude Pro or Max plan and a free GitHub account.</p>`;
     } else {
+      // Main path: Claude chat + the lendmyai connector. No GitHub account needed.
+      const prompt = `Use lendmyai to do this task: ${t.ref} "${t.title}"`;
+      const connected = store.get("connectorAdded") === "1";
       action = `
-        <h2>Lend your AI to this task</h2>
-        ${s.handoff ? `<div class="banner warn">Claude will continue from @${esc(s.handoff.user)}'s earlier work.</div>` : ""}
-        <p class="sub">Claude does the work for you in the cloud, using your Claude subscription. Nothing to install, and it keeps going if you close your laptop.</p>
-        <button class="primary big" id="start" style="width:100%">Start with Claude</button>
-        <p class="fine">Needs a Claude Pro or Max plan. The project owner reviews the result before anything changes.</p>
+        <h2>Do this task with Claude</h2>
+        ${s.handoff ? `<div class="banner warn">Claude will continue from ${esc(personName(s.handoff))}'s earlier work.</div>` : ""}
+        <ol class="flow">
+          <li class="${connected ? "done" : ""}" id="stepConnect"><b>Add lendmyai to Claude</b>
+            <span>${connected ? "Done. You only need this once." : "One time only, about 30 seconds."}</span>
+            <div id="setup" ${connected ? "hidden" : ""}>
+              <ol class="steps">
+                <li>Open <a href="https://claude.ai/customize/connectors" target="_blank" rel="noopener">Claude's connector settings ↗</a></li>
+                <li>Click <b>+</b>, then <b>Add custom connector</b>.</li>
+                <li>Name it <b>lendmyai</b> and paste this address:
+                  <div class="cmd" style="margin-top:6px"><code>${esc(CONNECTOR_URL)}</code><button id="copyConnector">Copy</button></div></li>
+                <li>Click <b>Add</b>, then <b>Connect</b>, and type the name you want to be credited with.</li>
+              </ol>
+              <button id="connectedDone" style="width:100%">I've added it</button>
+            </div>
+            ${connected ? `<button class="linkish" id="showSetup">Show the steps again</button>` : ""}</li>
+          <li><b>Ask Claude to do it</b>
+            <span>Claude opens with the request typed in. Just press <b>Send</b>.</span>
+            <a href="https://claude.ai/new?q=${encodeURIComponent(prompt)}" target="_blank" rel="noopener"><button class="primary" style="width:100%">Open Claude ↗</button></a></li>
+          <li><b>That's it</b>
+            <span>Claude does the work and sends it to the project owner, then tells you it's done. The owner decides what gets in.</span></li>
+        </ol>
+        <p class="fine">Works with any Claude plan. No GitHub account needed.</p>
+        <details class="advanced">
+          <summary>Have GitHub? Other ways to help</summary>
+          <p class="fine" style="margin-bottom:10px">With a GitHub account and Claude Pro or Max, Claude Code in the cloud can also run the project's tests.</p>
+          ${signedOut() ? signInButton("Sign in with GitHub", "") : `<button id="start" style="width:100%">Start with Claude Code (cloud)</button>`}
+        </details>
         ${localApp}`;
     }
   } else if (t.jobId) {
@@ -425,9 +451,9 @@ async function viewTask(o, r, n) {
   } else if (t.blocked) {
     action = `<div class="banner danger">${esc(t.blocked)}</div>`;
   } else if (s.kind === "in-review") {
-    action = `<div class="banner ok">In review: <a href="https://github.com/${esc(o)}/${esc(r)}/pull/${esc(s.pr)}" target="_blank" rel="noopener">PR #${esc(s.pr)}</a> by @${esc(s.user)}</div>`;
+    action = `<div class="banner ok">In review: <a href="https://github.com/${esc(o)}/${esc(r)}/pull/${esc(s.pr)}" target="_blank" rel="noopener">PR #${esc(s.pr)}</a> by ${esc(personName(s))}</div>`;
   } else if (s.kind === "claimed" && !mine) {
-    action = `<div class="banner warn">@${esc(s.user)} is working on this with ${esc(s.agent)} (${until(s.expires)}).</div>`;
+    action = `<div class="banner warn">${esc(personName(s))} is working on this with ${esc(s.agent)} (${until(s.expires)}).</div>`;
   } else {
     action = `
       <div class="stack">
@@ -485,6 +511,15 @@ async function viewTask(o, r, n) {
   const busy = (btn, label) => { btn.disabled = true; btn.dataset.label = btn.innerHTML; btn.innerHTML = `<span class="spinner"></span> ${label}`; };
   const idle = (btn) => { btn.disabled = false; btn.innerHTML = btn.dataset.label; };
 
+  document.getElementById("copyConnector")?.addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(CONNECTOR_URL); toast("Copied"); } catch { toast(CONNECTOR_URL); }
+  });
+  document.getElementById("connectedDone")?.addEventListener("click", () => { store.set("connectorAdded", "1"); render(); });
+  document.getElementById("showSetup")?.addEventListener("click", (e) => {
+    document.getElementById("setup").hidden = false;
+    e.target.hidden = true;
+  });
+
   document.getElementById("start")?.addEventListener("click", async (e) => {
     busy(e.target, "Getting things ready…");
     try { await call("POST", `${taskApi}/start`); render(); }
@@ -536,10 +571,10 @@ async function viewTask(o, r, n) {
 function timeline(events, o, r) {
   if (!events.length) return `<p class="sub" style="margin:0">No agent activity yet.</p>`;
   const label = (ev) => ({
-    claim: `<b>@${esc(ev.user)}</b> claimed with ${esc(ev.data.agent)}`,
-    release: `<b>@${esc(ev.user)}</b> released`,
-    handoff: `<b>@${esc(ev.user)}</b> checkpointed to <span class="mono">${esc(ev.data.repo)}:${esc(ev.data.branch)}</span>`,
-    done: `<b>@${esc(ev.user)}</b> opened <a href="https://github.com/${esc(o)}/${esc(r)}/pull/${esc(ev.data.pr)}" target="_blank" rel="noopener">PR #${esc(ev.data.pr)}</a>`,
+    claim: `<b>${esc(personName(ev))}</b> claimed with ${esc(ev.data.agent)}`,
+    release: `<b>${esc(personName(ev))}</b> released`,
+    handoff: `<b>${esc(personName(ev))}</b> checkpointed to <span class="mono">${esc(ev.data.repo)}:${esc(ev.data.branch)}</span>`,
+    done: `<b>${esc(personName(ev))}</b> opened <a href="https://github.com/${esc(o)}/${esc(r)}/pull/${esc(ev.data.pr)}" target="_blank" rel="noopener">PR #${esc(ev.data.pr)}</a>`,
   })[ev.kind];
   return `<ul class="timeline">${[...events].reverse().map((ev) => {
     const note = ev.kind === "handoff" ? ev.text.split("\n").slice(1).join("\n").trim() : "";
@@ -749,13 +784,13 @@ function heroHtml(browseLink) {
   return `
     <section class="hero">
       <h1>Lend your AI to projects that need help</h1>
-      <p>Have a Claude subscription? Pick a task a project owner posted, press one button, and Claude does the work for you in the cloud. The owner reviews the result.</p>
+      <p>Have Claude? Pick a task a project owner posted, and Claude does the work for you right in your Claude chat. No coding or GitHub account needed. The owner reviews the result.</p>
       ${browseLink ? `<button class="primary big" onclick="document.getElementById('projects-list').scrollIntoView({ behavior: 'smooth' })">Browse projects</button>` : signInButton("Sign in with GitHub", "primary big")}
-      <p class="fine">Free. To lend your AI or add a project you'll need a free GitHub account; that's where the projects live.</p>
+      <p class="fine">Free. Works with any Claude plan. Only project owners need GitHub.</p>
     </section>
     <section class="how">
       <div class="panel"><div class="num">1</div><h2>Owners add projects</h2><p>Anyone with a project on GitHub can list it and post tasks they want done, each with a clear "done when".</p></div>
-      <div class="panel"><div class="num">2</div><h2>You lend your AI</h2><p>Pick a task and click <b>Start with Claude</b>. Claude works in the cloud with your subscription, even after you close your laptop.</p></div>
+      <div class="panel"><div class="num">2</div><h2>You lend your AI</h2><p>Pick a task and click <b>Open Claude</b>. Claude does the work in your normal Claude chat, with any Claude plan.</p></div>
       <div class="panel"><div class="num">3</div><h2>Owner reviews</h2><p>The result goes to the owner as a suggested change. They decide what gets in.</p></div>
     </section>`;
 }
