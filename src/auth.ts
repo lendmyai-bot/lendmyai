@@ -9,7 +9,7 @@ import { setFallbackToken } from "./github.js";
 // `lendmyai login` via GitHub's device flow), then the GitHub CLI's login.
 
 /** Public client ID of the lendmyai GitHub OAuth App (device flow enabled). Not a secret. */
-const CLIENT_ID = process.env.LENDMYAI_GITHUB_CLIENT_ID || "";
+const CLIENT_ID = process.env.LENDMYAI_GITHUB_CLIENT_ID || "Ov23li5bvyCUX0qTjren";
 const SCOPE = "public_repo";
 
 export const HOME_DIR = join(homedir(), ".lendmyai");

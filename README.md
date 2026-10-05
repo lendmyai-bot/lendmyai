@@ -65,7 +65,7 @@ Every task state change is an issue comment with a hidden marker (`<!-- lendmyai
    - Authorization callback URL: `https://lendmyai.com/auth/callback`
    - Tick **Enable Device Flow** (the local app uses it to sign in).
    - Generate a client secret.
-2. Put the app's **Client ID** in `src/auth.ts` (`CLIENT_ID`). It's public; the npm package needs it.
+2. The app's **Client ID** goes in `src/auth.ts` (`CLIENT_ID`; already set for lendmyai.com). It's public, and the npm package needs it.
 3. Set the secrets and deploy:
    ```sh
    npx wrangler login
@@ -86,3 +86,7 @@ npm run dev:web            # website at http://localhost:8787 (needs .dev.vars, 
 ```
 
 For website sign-in during development, create a second OAuth App with the callback `http://localhost:8787/auth/callback`.
+
+## License
+
+[Functional Source License 1.1, Apache 2.0 future license](LICENSE.md). You may use, copy, modify and share lendmyai for any purpose, except offering it (or something substantially similar built from it) as a competing commercial product or service. Two years after each version is released, that version also becomes available under Apache 2.0.
