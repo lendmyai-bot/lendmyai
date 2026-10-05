@@ -20,6 +20,8 @@ const isDelegated = (w: Who) => w.id.startsWith("lendmyai:");
 export const mention = (w: Who) => (isDelegated(w) ? `**${w.name ?? "A contributor"}** (via lendmyai, no GitHub account)` : `@${w.id}`);
 /** Marker fields that tell the protocol which contributor the bot acted for. */
 const actingFor = (w: Who) => (isDelegated(w) ? { by: w.id, name: w.name } : {});
+/** Marker field with the tokens the agent used, when it reported any (feeds the Rank list). */
+const spent = (tokens?: number) => (tokens && tokens > 0 ? { tokens: Math.round(tokens) } : {});
 const upstreamOf = (task: Task) => `${task.owner}/${task.repo}`;
 
 /** Throws if `login` may not start (or resume) this task. */
@@ -76,11 +78,13 @@ export async function release(task: Task, whoArg: WhoArg, reason: string): Promi
   await postComment(task.owner, task.repo, task.number, `🤖 ${mention(who)} released this task (${reason}).\n${marker("release", actingFor(who))}`);
 }
 
-export async function postHandoff(task: Task, whoArg: WhoArg, agent: string, head: string, branch: string, note: string): Promise<void> {
+export async function postHandoff(
+  task: Task, whoArg: WhoArg, agent: string, head: string, branch: string, note: string, tokens?: number,
+): Promise<void> {
   const who = norm(whoArg);
   await postComment(
     task.owner, task.repo, task.number,
-    `🤖 ${mention(who)} checkpointed this task (agent: ${agent}). Work so far is on \`${head}:${branch}\`; the next contributor continues from there.\n\n${note}\n${marker("handoff", { repo: head, branch, ...actingFor(who) })}`,
+    `🤖 ${mention(who)} checkpointed this task (agent: ${agent}). Work so far is on \`${head}:${branch}\`; the next contributor continues from there.\n\n${note}\n${marker("handoff", { repo: head, branch, ...spent(tokens), ...actingFor(who) })}`,
   );
 }
 
@@ -217,7 +221,7 @@ export async function findPushedWork(task: Task, head: string, since: string): P
 
 /** Opens (or reuses) the pull request and marks the task as in review. */
 export async function submitPullRequest(
-  task: Task, head: string, branch: string, whoArg: WhoArg, agent: string, note: string,
+  task: Task, head: string, branch: string, whoArg: WhoArg, agent: string, note: string, tokens?: number,
 ): Promise<{ number: number; html_url: string }> {
   const who = norm(whoArg);
   const headOwner = head.split("/")[0];
@@ -238,6 +242,6 @@ export async function submitPullRequest(
     if (!existing.length) throw e;
     pr = existing[0];
   }
-  await postComment(task.owner, task.repo, task.number, `🤖 ${mention(who)} opened #${pr.number} for this task (agent: ${agent}).\n${marker("done", { pr: pr.number, ...actingFor(who) })}`);
+  await postComment(task.owner, task.repo, task.number, `🤖 ${mention(who)} opened #${pr.number} for this task (agent: ${agent}).\n${marker("done", { pr: pr.number, ...spent(tokens), ...actingFor(who) })}`);
   return pr;
 }
