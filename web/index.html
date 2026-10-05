@@ -1,0 +1,580 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>lendmyai</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/15.0.7/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.2.4/purify.min.js"></script>
+<style>
+  :root {
+    --bg: #f7f7f8; --surface: #ffffff; --surface-2: #f1f1f4; --border: #e3e3e8;
+    --text: #18181b; --muted: #6b6b76; --accent: #5b3ee6; --accent-soft: #ece8fd;
+    --ok: #16794a; --ok-soft: #e3f5ec; --warn: #9a5b00; --warn-soft: #fdf1dc;
+    --danger: #b42318; --danger-soft: #fde8e6; --term-bg: #121216; --term-text: #e4e4e7;
+    --radius: 10px; --shadow: 0 1px 2px rgb(0 0 0 / .05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f0f12; --surface: #18181c; --surface-2: #222228; --border: #2e2e36;
+      --text: #ececf1; --muted: #9c9ca8; --accent: #9b87ff; --accent-soft: #2a2350;
+      --ok: #4ccf8e; --ok-soft: #13301f; --warn: #f0b252; --warn-soft: #36290f;
+      --danger: #ff8a7f; --danger-soft: #3a1714; --term-bg: #0a0a0c;
+    }
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code, pre, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; }
+
+  header { position: sticky; top: 0; z-index: 5; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .bar { max-width: 1200px; margin: 0 auto; padding: 0 16px; height: 56px; display: flex; align-items: center; gap: 24px; }
+  .logo { font-weight: 700; font-size: 16px; color: var(--text); display: flex; align-items: center; gap: 8px; }
+  .logo span { width: 22px; height: 22px; border-radius: 6px; background: var(--accent); display: inline-grid; place-items: center; color: #fff; font-size: 13px; }
+  nav { display: flex; gap: 4px; }
+  nav a { color: var(--muted); padding: 6px 10px; border-radius: 8px; font-weight: 500; }
+  nav a.active, nav a:hover { color: var(--text); background: var(--surface-2); text-decoration: none; }
+  @media (max-width: 600px) {
+    .bar { height: auto; flex-wrap: wrap; gap: 8px 12px; padding-top: 10px; padding-bottom: 8px; }
+    nav { order: 3; width: 100%; margin-left: -10px; }
+  }
+  .who { margin-left: auto; color: var(--muted); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+
+  main { max-width: 1200px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 15px; margin: 0 0 12px; }
+  h3 { font-size: 14px; margin: 20px 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; font-size: 12px; }
+  .sub { color: var(--muted); margin: 0 0 20px; }
+
+  .toolbar { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+  input, select, textarea { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; width: 100%; }
+  textarea { min-height: 84px; resize: vertical; }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+  .toolbar input { flex: 1; min-width: 200px; width: auto; }
+  button { font: inherit; font-weight: 500; border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 8px; padding: 8px 14px; cursor: pointer; white-space: nowrap; }
+  button:hover:not(:disabled) { background: var(--surface-2); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.primary:hover:not(:disabled) { filter: brightness(1.08); background: var(--accent); }
+  button.danger { color: var(--danger); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+
+  .cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  @media (max-width: 860px) { .cols { grid-template-columns: 1fr; } }
+  .col { background: var(--surface-2); border-radius: var(--radius); padding: 12px; min-height: 120px; }
+  .col-head { display: flex; justify-content: space-between; font-weight: 600; margin: 2px 4px 10px; }
+  .col-head .n { color: var(--muted); font-weight: 500; }
+  .card { display: block; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; margin-bottom: 8px; color: var(--text); box-shadow: var(--shadow); }
+  .card:hover { border-color: var(--accent); text-decoration: none; }
+  .card .ref { color: var(--muted); font-size: 12px; }
+  .card .title { font-weight: 600; margin: 2px 0 8px; overflow-wrap: anywhere; }
+  .empty { color: var(--muted); text-align: center; padding: 24px 8px; font-size: 13px; }
+
+  .pill { display: inline-block; font-size: 12px; font-weight: 500; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--muted); }
+  .pill.ok { background: var(--ok-soft); color: var(--ok); }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); }
+  .pill.accent { background: var(--accent-soft); color: var(--accent); }
+  .pill.danger { background: var(--danger-soft); color: var(--danger); }
+
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 24px; align-items: start; }
+  @media (max-width: 860px) { .layout { grid-template-columns: 1fr; } }
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); }
+  .panel + .panel { margin-top: 16px; }
+  .layout > .panel { margin-top: 0; }
+  .banner { border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; }
+  .banner.warn { background: var(--warn-soft); color: var(--warn); }
+  .banner.danger { background: var(--danger-soft); color: var(--danger); }
+  .banner.ok { background: var(--ok-soft); color: var(--ok); }
+  .banner.info { background: var(--accent-soft); color: var(--accent); }
+  .md { overflow-wrap: anywhere; }
+  .md > :first-child { margin-top: 0; } .md > :last-child { margin-bottom: 0; }
+  .md pre { background: var(--surface-2); padding: 10px; border-radius: 8px; overflow-x: auto; }
+  .md img { max-width: 100%; }
+  .back { display: inline-block; margin-bottom: 12px; color: var(--muted); }
+
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-weight: 500; margin-bottom: 4px; }
+  .field .hint { color: var(--muted); font-size: 12px; margin-top: 4px; }
+  .stack > * + * { margin-top: 8px; }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .cmd { display: flex; gap: 6px; align-items: center; background: var(--surface-2); border-radius: 8px; padding: 6px 6px 6px 10px; }
+  .cmd code { flex: 1; overflow-x: auto; white-space: nowrap; }
+  .cmd button { padding: 4px 10px; font-size: 12px; }
+
+  .timeline { list-style: none; margin: 0; padding: 0; }
+  .timeline li { padding: 8px 0; border-top: 1px solid var(--border); }
+  .timeline li:first-child { border-top: 0; }
+  .timeline .when { color: var(--muted); font-size: 12px; }
+  .timeline .note { margin-top: 6px; padding: 8px 10px; background: var(--surface-2); border-radius: 8px; font-size: 13px; }
+
+  .term { background: var(--term-bg); color: var(--term-text); border-radius: var(--radius); padding: 14px; height: 440px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
+  .term .tool { color: #a5b4fc; } .term .ok { color: #6ee7a8; } .term .err { color: #fca5a5; }
+  .choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+  .choices button { text-align: left; padding: 10px 12px; white-space: normal; }
+  .choices small { display: block; font-weight: 400; opacity: .8; }
+
+  table { width: 100%; border-collapse: collapse; }
+  td, th { text-align: left; padding: 10px 8px; border-top: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 500; font-size: 12px; border-top: 0; }
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; vertical-align: -2px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .steps { padding-left: 20px; margin: 0 0 12px; }
+  .steps li { margin-bottom: 12px; }
+  .hero { text-align: center; max-width: 680px; margin: 48px auto 40px; }
+  .hero h1 { font-size: clamp(28px, 5vw, 40px); line-height: 1.15; margin-bottom: 14px; }
+  .hero p { color: var(--muted); font-size: 17px; margin: 0 0 24px; }
+  .hero .fine { font-size: 13px; margin-top: 12px; }
+  button.big { font-size: 16px; padding: 12px 22px; }
+  .how { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  @media (max-width: 760px) { .how { grid-template-columns: 1fr; } }
+  .how .panel { margin-top: 0; }
+  .how p { color: var(--muted); margin: 0; }
+  .num { width: 28px; height: 28px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font-weight: 700; margin-bottom: 10px; }
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 8px; max-width: calc(100% - 32px); z-index: 10; }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <a class="logo" href="#/"><span>◆</span>lendmyai</a>
+    <nav>
+      <a href="#/" data-nav="board">Board</a>
+      <a href="#/publish" data-nav="publish">Publish</a>
+      <a href="#/runs" data-nav="runs">Runs</a>
+    </nav>
+    <div class="who" id="who"><span class="spinner"></span></div>
+  </div>
+</header>
+<main id="main"></main>
+
+<script>
+const main = document.getElementById("main");
+let me = { login: "", agents: [] };
+let pollTimer = null;
+
+// ---------- helpers ----------
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+if (window.DOMPurify) {
+  DOMPurify.addHook("afterSanitizeAttributes", (n) => { if (n.tagName === "A") { n.target = "_blank"; n.rel = "noopener noreferrer"; } });
+}
+function md(text) {
+  if (!text?.trim()) return `<p class="sub">No description.</p>`;
+  if (window.marked && window.DOMPurify) return DOMPurify.sanitize(marked.parse(text));
+  return `<p style="white-space:pre-wrap">${esc(text)}</p>`;
+}
+
+async function call(method, path, body) {
+  const res = await fetch(path, {
+    method,
+    headers: method === "POST" ? { "Content-Type": "application/json" } : {},
+    body: method === "POST" ? JSON.stringify(body ?? {}) : undefined,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || res.statusText);
+  return data;
+}
+
+function toast(msg) {
+  const el = document.createElement("div");
+  el.className = "toast"; el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+const store = {
+  get(k) { try { return localStorage.getItem(k) || ""; } catch { return ""; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+};
+
+const ago = (iso) => {
+  const s = (Date.now() - new Date(iso)) / 1000;
+  if (s < 60) return "just now";
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  return `${Math.floor(s / 86400)}d ago`;
+};
+const until = (iso) => { const h = (new Date(iso) - Date.now()) / 3600000; return h < 1 ? `${Math.max(1, Math.round(h * 60))}m left` : `${Math.round(h)}h left`; };
+const splitRef = (ref) => { const m = /^(.+?)\/(.+?)#(\d+)$/.exec(ref); return m ? [m[1], m[2], m[3]] : []; };
+const taskHref = (ref) => `#/task/${splitRef(ref).join("/")}`;
+
+function statePill(s) {
+  if (s.kind === "available") return s.handoff ? `<span class="pill warn">resumable · @${esc(s.handoff.user)}</span>` : `<span class="pill ok">available</span>`;
+  if (s.kind === "claimed") return `<span class="pill accent">@${esc(s.user)} · ${esc(s.agent)} · ${until(s.expires)}</span>`;
+  return `<span class="pill">PR #${esc(s.pr)} · @${esc(s.user)}</span>`;
+}
+
+function errorBox(e) { return `<div class="banner danger">${esc(e.message || e)}</div>`; }
+const loading = (what) => `<p class="sub"><span class="spinner"></span>&nbsp; Loading ${what}…</p>`;
+
+// ---------- router ----------
+async function render() {
+  clearInterval(pollTimer);
+  const parts = location.hash.replace(/^#\/?/, "").split("/").filter(Boolean).map(decodeURIComponent);
+  const view = parts[0] || "board";
+  document.querySelectorAll("[data-nav]").forEach((a) => a.classList.toggle("active", a.dataset.nav === (view === "task" ? "board" : view === "run" ? "runs" : view)));
+  window.scrollTo(0, 0);
+  try {
+    if (view === "task") return await viewTask(parts[1], parts[2], parts[3]);
+    if (view === "run") return await viewRun(parts[1]);
+    if (view === "publish") return await viewPublish();
+    if (view === "runs") return await viewRuns();
+    return await viewBoard();
+  } catch (e) {
+    main.innerHTML = errorBox(e);
+  }
+}
+window.addEventListener("hashchange", render);
+
+// ---------- board ----------
+async function viewBoard() {
+  const repo = store.get("repoFilter");
+  main.innerHTML = `
+    <h1>Task board</h1>
+    <p class="sub">Open tasks that maintainers approved for AI agents. Pick one and run your own agent on it.</p>
+    <form class="toolbar" id="filter">
+      <input id="repo" placeholder="All listed repos, or filter: owner/repo" value="${esc(repo)}">
+      <button type="submit">Refresh</button>
+    </form>
+    <div id="cols">${loading("tasks")}</div>`;
+  document.getElementById("filter").onsubmit = (e) => {
+    e.preventDefault();
+    store.set("repoFilter", document.getElementById("repo").value.trim());
+    viewBoard();
+  };
+
+  const colsEl = document.getElementById("cols");
+  try {
+    const tasks = await call("GET", `/api/tasks${repo ? `?repo=${encodeURIComponent(repo)}` : ""}`);
+    const groups = [
+      ["Available", tasks.filter((t) => t.state.kind === "available"), "Nothing to pick up right now."],
+      ["In progress", tasks.filter((t) => t.state.kind === "claimed"), "No agent is working on anything."],
+      ["In review", tasks.filter((t) => t.state.kind === "in-review"), "No pull requests waiting."],
+    ];
+    colsEl.innerHTML = `<div class="cols">${groups.map(([name, list, empty]) => `
+      <section class="col">
+        <div class="col-head"><span>${name}</span><span class="n">${list.length}</span></div>
+        ${list.length ? list.map(card).join("") : `<div class="empty">${empty}</div>`}
+      </section>`).join("")}</div>
+      ${tasks.length ? "" : `<p class="sub" style="margin-top:16px">No tasks found. Maintainers can publish one from <a href="#/publish">Publish</a>.</p>`}`;
+  } catch (e) {
+    colsEl.innerHTML = errorBox(e);
+  }
+}
+
+function card(t) {
+  return `<a class="card" href="${taskHref(t.ref)}">
+    <div class="ref">${esc(t.ref)}</div>
+    <div class="title">${esc(t.title)}</div>
+    ${statePill(t.state)}
+  </a>`;
+}
+
+// ---------- task ----------
+async function viewTask(o, r, n) {
+  main.innerHTML = `<a class="back" href="#/">← Board</a>${loading("task")}`;
+  const t = await call("GET", `/api/tasks/${encodeURIComponent(o)}/${encodeURIComponent(r)}/${n}`);
+  const s = t.state;
+  const mine = s.kind !== "available" && s.user === me.login;
+  const hosted = me.mode === "hosted";
+  const command = hosted ? "npx lendmyai" : `npx lendmyai work ${t.ref}`;
+
+  let action;
+  if (hosted && !t.blocked && s.kind !== "in-review" && (s.kind !== "claimed" || mine)) {
+    // The website can't run agents; hand off to the local app on the user's computer.
+    action = `
+      <h2>Lend your AI to this task</h2>
+      ${s.handoff ? `<div class="banner warn">Your AI will continue from @${esc(s.handoff.user)}'s checkpoint.</div>` : ""}
+      <ol class="steps">
+        <li>Install <a href="https://nodejs.org" target="_blank" rel="noopener">Node.js</a> and <a href="https://claude.com/claude-code" target="_blank" rel="noopener">Claude Code</a> (one time).</li>
+        <li>Open the Terminal app and run:
+          <div class="cmd" style="margin-top:6px"><code>${esc(command)}</code><button id="copy">Copy</button></div></li>
+        <li>Then come back and click:<br>
+          <a href="http://localhost:4321/${taskHref(t.ref)}" target="_blank" rel="noopener"><button class="primary" style="width:100%;margin-top:6px">Open this task in the app</button></a></li>
+      </ol>
+      <div class="hint" style="color:var(--muted);font-size:12px">Your AI works on your computer with your own subscription. Nothing runs until you click start in the app.</div>`;
+  } else if (t.jobId) {
+    action = `<div class="banner info">An agent is running on this task.</div><a href="#/run/${t.jobId}"><button class="primary">View run</button></a>`;
+  } else if (t.blocked) {
+    action = `<div class="banner danger">${esc(t.blocked)}</div>`;
+  } else if (s.kind === "in-review") {
+    action = `<div class="banner ok">In review: <a href="https://github.com/${esc(o)}/${esc(r)}/pull/${esc(s.pr)}" target="_blank" rel="noopener">PR #${esc(s.pr)}</a> by @${esc(s.user)}</div>`;
+  } else if (s.kind === "claimed" && !mine) {
+    action = `<div class="banner warn">@${esc(s.user)} is working on this with ${esc(s.agent)} (${until(s.expires)}).</div>`;
+  } else {
+    action = `
+      <div class="stack">
+        ${mine ? `<div class="banner info">You hold this claim (${until(s.expires)}). Running again continues your work.</div>` : ""}
+        ${s.handoff ? `<div class="banner warn">Your agent will continue from @${esc(s.handoff.user)}'s checkpoint.</div>` : ""}
+        ${me.agents.length ? `
+          <div class="field" style="margin:0">
+            <label for="agent">Agent</label>
+            <select id="agent">${me.agents.map((a) => `<option>${esc(a)}</option>`).join("")}</select>
+            <div class="hint">Runs headless on this computer with your own subscription. It edits files only, and you decide what happens with the result.</div>
+          </div>
+          <button class="primary" id="run" style="width:100%">${mine ? "Continue with agent" : "Claim &amp; run agent"}</button>`
+        : `<div class="banner warn">No agent CLI found. Install Claude Code, Codex or Gemini CLI.</div>`}
+        <div style="margin-top:14px"><label style="font-weight:500">Or run interactively in a terminal</label>
+          <div class="cmd" style="margin-top:4px"><code>${esc(command)}</code><button id="copy">Copy</button></div>
+        </div>
+      </div>`;
+  }
+  const canRelease = (s.kind === "claimed" || s.kind === "in-review") && (mine || t.canPush) && !t.jobId;
+
+  main.innerHTML = `
+    <a class="back" href="#/">← Board</a>
+    <div class="layout">
+      <div>
+        <div class="row" style="flex-wrap:wrap;margin-bottom:4px"><a href="${esc(t.url)}" target="_blank" rel="noopener" class="mono">${esc(t.ref)}</a>${statePill(s)}</div>
+        <h1>${esc(t.title)}</h1>
+        <div style="height:12px"></div>
+        ${t.warnings.map((w) => `<div class="banner warn">⚠ ${esc(w)}</div>`).join("")}
+        <div class="panel"><h2>Task</h2><div class="md">${md(t.body)}</div></div>
+        ${t.notes.length ? `<div class="panel"><h2>Maintainer comments</h2>${t.notes.map((nt) => `<div class="md" style="margin-bottom:10px">${md(nt)}</div>`).join("")}</div>` : ""}
+      </div>
+      <aside>
+        <div class="panel">${action}
+          ${canRelease ? `<button class="danger" id="release" style="width:100%;margin-top:10px">Release claim</button>` : ""}
+        </div>
+        <div class="panel"><h2>Activity</h2>${timeline(t.events, o, r)}</div>
+      </aside>
+    </div>`;
+
+  document.getElementById("copy")?.addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(command); toast("Copied"); } catch { toast(command); }
+  });
+  document.getElementById("run")?.addEventListener("click", async (e) => {
+    const agent = document.getElementById("agent").value;
+    if (!confirm(`Claim ${t.ref} and run ${agent}?\n\nThis posts a claim comment on GitHub, checks out the repo in ~/.lendmyai/work and runs ${agent} headless. Nothing is pushed until you choose.`)) return;
+    e.target.disabled = true; e.target.innerHTML = `<span class="spinner"></span> Starting…`;
+    try {
+      const { jobId } = await call("POST", `/api/tasks/${o}/${r}/${n}/run`, { agent });
+      location.hash = `#/run/${jobId}`;
+    } catch (err) {
+      toast(err.message); e.target.disabled = false; e.target.textContent = "Claim & run agent";
+    }
+  });
+  document.getElementById("release")?.addEventListener("click", async (e) => {
+    if (!confirm("Release this claim so someone else can pick up the task?")) return;
+    e.target.disabled = true;
+    try { await call("POST", `/api/tasks/${o}/${r}/${n}/release`); toast("Released"); render(); }
+    catch (err) { toast(err.message); e.target.disabled = false; }
+  });
+}
+
+function timeline(events, o, r) {
+  if (!events.length) return `<p class="sub" style="margin:0">No agent activity yet.</p>`;
+  const label = (ev) => ({
+    claim: `<b>@${esc(ev.user)}</b> claimed with ${esc(ev.data.agent)}`,
+    release: `<b>@${esc(ev.user)}</b> released`,
+    handoff: `<b>@${esc(ev.user)}</b> checkpointed to <span class="mono">${esc(ev.data.repo)}:${esc(ev.data.branch)}</span>`,
+    done: `<b>@${esc(ev.user)}</b> opened <a href="https://github.com/${esc(o)}/${esc(r)}/pull/${esc(ev.data.pr)}" target="_blank" rel="noopener">PR #${esc(ev.data.pr)}</a>`,
+  })[ev.kind];
+  return `<ul class="timeline">${[...events].reverse().map((ev) => {
+    const note = ev.kind === "handoff" ? ev.text.split("\n").slice(1).join("\n").trim() : "";
+    return `<li>${label(ev)}<div class="when">${ago(ev.at)}</div>${note ? `<div class="note md">${md(note)}</div>` : ""}</li>`;
+  }).join("")}</ul>`;
+}
+
+// ---------- run ----------
+async function viewRun(id) {
+  main.innerHTML = loading("run");
+  let job = await call("GET", `/api/jobs/${id}?since=0`);
+  let lines = job.log;
+  const [o, r, n] = splitRef(job.ref);
+
+  main.innerHTML = `
+    <a class="back" href="${taskHref(job.ref)}">← ${esc(job.ref)}</a>
+    <div class="row" style="justify-content:space-between;flex-wrap:wrap;margin-bottom:12px">
+      <h1>${esc(job.agent)} on ${esc(job.ref)}</h1>
+      <div class="row"><span id="status"></span><button id="stop" class="danger" hidden>Stop agent</button></div>
+    </div>
+    <pre class="term" id="term"></pre>
+    <div id="after"></div>`;
+  const term = document.getElementById("term");
+  const statusEl = document.getElementById("status");
+  const stopBtn = document.getElementById("stop");
+  stopBtn.onclick = async () => { if (confirm("Stop the agent? You can still checkpoint what it did so far.")) await call("POST", `/api/jobs/${id}/stop`).catch((e) => toast(e.message)); };
+
+  const append = (newLines) => {
+    const stick = term.scrollTop + term.clientHeight >= term.scrollHeight - 30;
+    for (const l of newLines) {
+      const span = document.createElement("span");
+      span.className = l.startsWith("→") ? "tool" : l.startsWith("✓") || l.startsWith("■") ? "ok" : /error|failed/i.test(l) ? "err" : "";
+      span.textContent = l + "\n";
+      term.appendChild(span);
+    }
+    if (stick) term.scrollTop = term.scrollHeight;
+  };
+  let shown = "";
+  const update = () => {
+    const pills = { starting: "accent", running: "accent", review: "warn", completing: "accent", done: "ok", error: "danger" };
+    const live = ["starting", "running", "completing"].includes(job.status);
+    statusEl.innerHTML = `<span class="pill ${pills[job.status]}">${live ? `<span class="spinner" style="width:10px;height:10px"></span> ` : ""}${esc(job.status)}</span>`;
+    stopBtn.hidden = !job.running;
+    const key = job.status + (job.result?.message ?? "") + (job.error ?? "");
+    if (key === shown) return;
+    shown = key;
+    const after = document.getElementById("after");
+    if (job.status === "error") after.innerHTML = `<div style="margin-top:16px">${errorBox(job.error)}</div>`;
+    else if (job.status === "review" || job.status === "completing") after.innerHTML = reviewPanel(job);
+    else if (job.status === "done") after.innerHTML = `<div class="panel" style="margin-top:16px"><div class="banner ok" style="margin:0">✓ ${esc(job.result.message)}${job.result.url ? ` · <a href="${esc(job.result.url)}" target="_blank" rel="noopener">${esc(job.result.url)}</a>` : ""}</div></div>`;
+    else after.innerHTML = "";
+    after.querySelectorAll("[data-choice]").forEach((b) => b.addEventListener("click", () => finish(b.dataset.choice)));
+  };
+  const finish = async (choice) => {
+    if (choice === "release" && !confirm("Release the task? Your local changes are kept but not pushed.")) return;
+    document.querySelectorAll("[data-choice]").forEach((b) => (b.disabled = true));
+    try { job = { ...job, ...(await call("POST", `/api/jobs/${id}/finish`, { choice })) }; update(); }
+    catch (e) { toast(e.message); document.querySelectorAll("[data-choice]").forEach((b) => (b.disabled = false)); }
+  };
+
+  append(lines);
+  update();
+  let count = job.logLength;
+  pollTimer = setInterval(async () => {
+    if (["done", "error"].includes(job.status)) return clearInterval(pollTimer);
+    try {
+      const next = await call("GET", `/api/jobs/${id}?since=${count}`);
+      count = next.logLength;
+      append(next.log);
+      job = next;
+      update();
+    } catch {}
+  }, 1000);
+}
+
+function reviewPanel(job) {
+  const r = job.review;
+  const busy = job.status === "completing";
+  const statusPill = { DONE: `<span class="pill ok">agent says: done</span>`, PARTIAL: `<span class="pill warn">agent says: partial</span>`, unknown: `<span class="pill">no handoff note</span>` }[r.status];
+  const btn = (choice, title, desc, enabled = true) =>
+    `<button data-choice="${choice}" class="${choice === job.defaultChoice ? "primary" : choice === "release" ? "danger" : ""}" ${!enabled || busy ? "disabled" : ""}>${title}<small>${desc}</small></button>`;
+  return `
+    <div class="panel" style="margin-top:16px">
+      <div class="row" style="justify-content:space-between"><h2 style="margin:0">Review the result</h2>${statusPill}</div>
+      <h3>Changes</h3>
+      ${r.hasWork ? `<pre class="md" style="background:var(--surface-2);padding:10px;border-radius:8px;overflow-x:auto;margin:0">${esc(r.changes)}</pre>` : `<p class="sub" style="margin:0">The agent made no changes.</p>`}
+      <h3>Handoff note</h3>
+      <div class="md">${md(r.note)}</div>
+      <div class="choices">
+        ${btn("pr", "Open pull request", "Commit, push and open a PR that closes the issue", r.hasWork)}
+        ${btn("checkpoint", "Checkpoint &amp; hand off", "Push work so far; anyone can continue it", r.hasWork)}
+        ${btn("keep", "Keep claim", "Do nothing now, continue later")}
+        ${btn("release", "Release task", "Give it up; nothing is pushed")}
+      </div>
+      ${busy ? `<p class="sub" style="margin:12px 0 0"><span class="spinner"></span>&nbsp; Pushing to GitHub…</p>` : ""}
+    </div>`;
+}
+
+// ---------- runs ----------
+async function viewRuns() {
+  main.innerHTML = `<h1>Runs</h1><p class="sub">Agent runs started from this browser since the server started.</p>${loading("runs")}`;
+  const jobs = await call("GET", "/api/jobs");
+  main.innerHTML = `<h1>Runs</h1><p class="sub">Agent runs started from this browser since the server started.</p>
+    <div class="panel">${jobs.length ? `<table><tr><th>Task</th><th>Agent</th><th>Status</th><th>Started</th></tr>
+      ${jobs.map((j) => `<tr><td><a href="#/run/${j.id}">${esc(j.ref)}</a></td><td>${esc(j.agent)}</td><td>${esc(j.status)}</td><td>${ago(j.startedAt)}</td></tr>`).join("")}
+    </table>` : `<p class="sub" style="margin:0">No runs yet. Pick a task on the <a href="#/">board</a>.</p>`}</div>`;
+}
+
+// ---------- publish ----------
+async function viewPublish() {
+  main.innerHTML = `<h1>Publish a task</h1><p class="sub">Turn work in your repo into a task any contributor's agent can pick up. It's created as a GitHub issue labeled <code>agent-task</code>.</p>${loading("your repositories")}`;
+  const repos = await call("GET", "/api/repos");
+  const last = store.get("publishRepo");
+  main.innerHTML = `
+    <h1>Publish a task</h1>
+    <p class="sub">Turn work in your repo into a task any contributor's agent can pick up. It's created as a GitHub issue labeled <code>agent-task</code>.</p>
+    <div class="layout">
+      <form class="panel" id="form">
+        <div class="field"><label for="prepo">Repository</label>
+          <select id="prepo" required>${repos.map((r) => `<option ${r.fullName === last ? "selected" : ""}>${esc(r.fullName)}</option>`).join("")}</select>
+          <div class="hint" id="listedHint"></div>
+        </div>
+        <div class="field"><label for="title">Title</label><input id="title" required placeholder="Add dark mode toggle to settings page"></div>
+        <div class="field"><label for="goal">Goal</label><textarea id="goal" placeholder="What should change and why."></textarea></div>
+        <div class="field"><label for="done">Done when</label><textarea id="done" placeholder="- Toggle persists across reloads&#10;- npm test passes"></textarea>
+          <div class="hint">Clear acceptance criteria are the best predictor of a mergeable PR.</div></div>
+        <div class="field"><label for="notes">Notes <span class="sub">(optional)</span></label><textarea id="notes" placeholder="Relevant files, constraints, things to avoid."></textarea></div>
+        <button class="primary" type="submit">Publish task</button>
+      </form>
+      <aside class="panel">
+        <h2>Good tasks</h2>
+        <ul style="padding-left:18px;margin:0" class="stack">
+          <li>Fit in one agent session. Split big features into several tasks.</li>
+          <li>Say what "done" means, ideally as tests or checks.</li>
+          <li>Have CI on pull requests so every agent's work is checked the same way.</li>
+        </ul>
+      </aside>
+    </div>`;
+
+  const sel = document.getElementById("prepo");
+  const hint = () => {
+    const r = repos.find((x) => x.fullName === sel.value);
+    document.getElementById("listedHint").innerHTML = r?.listed
+      ? "Listed on the public board."
+      : "Not listed yet. Publishing adds the <code>lendmyai</code> topic so others can find it.";
+  };
+  sel.onchange = hint; hint();
+
+  document.getElementById("form").onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = e.target.querySelector("button[type=submit]");
+    btn.disabled = true; btn.innerHTML = `<span class="spinner"></span> Publishing…`;
+    const [o, r] = sel.value.split("/");
+    try {
+      store.set("publishRepo", sel.value);
+      if (!repos.find((x) => x.fullName === sel.value)?.listed) await call("POST", `/api/repos/${o}/${r}/init`);
+      const res = await call("POST", `/api/repos/${o}/${r}/tasks`, {
+        title: document.getElementById("title").value,
+        goal: document.getElementById("goal").value,
+        doneWhen: document.getElementById("done").value,
+        notes: document.getElementById("notes").value,
+      });
+      toast("Task published");
+      location.hash = taskHref(res.ref);
+    } catch (err) {
+      toast(err.message); btn.disabled = false; btn.textContent = "Publish task";
+    }
+  };
+}
+
+// ---------- landing (website, signed out) ----------
+function viewLanding() {
+  document.querySelector("nav").hidden = true;
+  document.getElementById("who").innerHTML = `<a href="/auth/login"><button>Sign in</button></a>`;
+  main.innerHTML = `
+    <section class="hero">
+      <h1>Lend your AI to projects that need help</h1>
+      <p>Have a Claude subscription? Point it at real tasks that project owners have posted. Your AI does the work on your computer, and the owner reviews the result.</p>
+      <a href="/auth/login"><button class="primary big">Sign in with GitHub</button></a>
+      <p class="fine">Free. You need a free GitHub account; that's where the projects live.</p>
+    </section>
+    <section class="how">
+      <div class="panel"><div class="num">1</div><h2>Owners post tasks</h2><p>Anyone with a project on GitHub can post work they want done, with a clear "done when".</p></div>
+      <div class="panel"><div class="num">2</div><h2>You lend your AI</h2><p>Pick a task and click start. Your AI works on your own computer, using your own subscription.</p></div>
+      <div class="panel"><div class="num">3</div><h2>Owner reviews</h2><p>The result goes to the owner as a suggested change. They decide what gets in.</p></div>
+    </section>`;
+}
+
+// ---------- boot ----------
+(async () => {
+  try {
+    me = await call("GET", "/api/me");
+  } catch (e) {
+    if (/not signed in/i.test(e.message)) return viewLanding();
+    document.getElementById("who").innerHTML = `<span class="pill danger">error</span>`;
+    main.innerHTML = errorBox(e);
+    return;
+  }
+  const hosted = me.mode === "hosted";
+  document.querySelector('[data-nav="runs"]').hidden = hosted;
+  document.getElementById("who").innerHTML = hosted
+    ? `<span>@${esc(me.login)}</span><a href="/auth/logout">Sign out</a>`
+    : `${me.agents.length ? me.agents.map((a) => `<span class="pill ok">${esc(a)}</span>`).join("") : `<span class="pill warn">no agent CLI</span>`}<span>@${esc(me.login)}</span>`;
+  render();
+})();
+</script>
+</body>
+</html>

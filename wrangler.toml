@@ -1,0 +1,18 @@
+name = "lendmyai"
+main = "worker/worker.ts"
+compatibility_date = "2025-09-01"
+# Needed for AsyncLocalStorage (per-request GitHub token).
+compatibility_flags = ["nodejs_compat"]
+
+[assets]
+directory = "web"
+binding = "ASSETS"
+
+# Uncomment once the domain is in your Cloudflare account:
+# routes = [{ pattern = "lendmyai.com", custom_domain = true }]
+
+# Secrets (never commit them):
+#   npx wrangler secret put GITHUB_CLIENT_ID
+#   npx wrangler secret put GITHUB_CLIENT_SECRET
+#   npx wrangler secret put SESSION_SECRET
+# For local development put the same keys in .dev.vars (git-ignored).
