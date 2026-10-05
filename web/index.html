@@ -140,6 +140,10 @@
   .flow .steps { font-size: 13px; padding-left: 18px; margin: 4px 0 10px; }
   .flow .steps li { margin-bottom: 8px; }
   .fine { color: var(--muted); font-size: 12px; margin: 8px 0 0; }
+  .panel.plan { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; border-color: var(--accent); }
+  .panel.plan > div:first-child { display: flex; flex-direction: column; gap: 4px; max-width: 640px; }
+  .panel.plan span { color: var(--muted); font-size: 14px; }
+  .panel.plan #plan { min-width: 220px; }
   .waiting { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; padding: 16px; border: 1px dashed var(--accent); border-radius: var(--radius); background: var(--accent-soft); margin-bottom: 8px; }
   .waiting .spinner { width: 22px; height: 22px; margin-bottom: 4px; }
   .waiting span { color: var(--text); font-size: 14px; }
@@ -277,6 +281,47 @@ function watchConnector(t) {
   window.addEventListener("focus", tick, { once: true });
 }
 
+/** Planning needs the connector linked to the same GitHub account that's signed in here. */
+const ownerLinked = () => connector.connected && connector.github === me.login;
+const claudePlanUrl = (full) => `https://claude.ai/new?q=${encodeURIComponent(`Help me plan lendmyai tasks for my project ${full}.`)}`;
+
+function planHtml(full, waiting = false) {
+  if (ownerLinked()) {
+    return `<a href="${esc(claudePlanUrl(full))}" target="_blank" rel="noopener"><button class="primary">Plan tasks with Claude</button></a>`;
+  }
+  if (waiting) {
+    return `<div class="waiting">
+        <span class="spinner"></span>
+        <b>Finish in the Claude tab</b>
+        <span>${connector.connected
+          ? "Click <b>lendmyai</b>, then <b>Disconnect</b> and <b>Connect</b> again. Your GitHub gets linked automatically."
+          : "Click <b>Add</b>, then <b>Connect</b>. Your GitHub gets linked automatically."}</span>
+        <span class="fine">This page continues by itself.</span>
+      </div>`;
+  }
+  return `<button class="primary" id="planConnect">Plan tasks with Claude</button>`;
+}
+
+function startPlanConnect(full) {
+  // Not connected yet: open the prefilled add dialog. Connected without GitHub: open the connector list to reconnect.
+  window.open(connector.connected ? "https://claude.ai/customize/connectors" : ADD_CONNECTOR_URL, "_blank", "noopener");
+  const box = document.getElementById("plan");
+  box.innerHTML = planHtml(full, true);
+  const started = Date.now();
+  const tick = async () => {
+    if (!document.body.contains(box)) return clearInterval(pollTimer);
+    await refreshConnector();
+    if (ownerLinked() || Date.now() - started > 15 * 60_000) {
+      clearInterval(pollTimer);
+      box.innerHTML = planHtml(full);
+      if (ownerLinked()) toast("✓ Claude can now plan tasks for your projects.");
+      else box.querySelector("#planConnect")?.addEventListener("click", () => startPlanConnect(full));
+    }
+  };
+  clearInterval(pollTimer);
+  pollTimer = setInterval(tick, 2000);
+}
+
 function startConnect(t) {
   window.open(ADD_CONNECTOR_URL, "_blank", "noopener");
   watchConnector(t);
@@ -370,11 +415,12 @@ async function viewProject(o, r) {
       </div>
       ${p.canManage ? `<div class="row">
         ${p.listed ? `<button id="unlist" class="danger">Unlist</button>` : `<button id="list">List project</button>`}
-        <a href="${projectHref(full)}/new"><button class="primary">Add task</button></a>
+        <a href="${projectHref(full)}/new"><button>Add one task</button></a>
       </div>` : ""}
     </div>
     ${p.description ? `<p class="lead">${esc(p.description)}</p>` : ""}
     ${!p.listed ? `<div class="banner warn">This project is not listed, so it doesn't appear on the Projects page.</div>` : ""}
+    ${p.canManage && me.mode === "hosted" ? `<div class="panel plan"><div><b>Plan tasks with Claude</b><span>Tell Claude what you want to achieve. It reads your project, suggests small tasks, and posts them once you approve.</span></div><div id="plan">${planHtml(full)}</div></div>` : ""}
     <div class="stats">
       <div><b>${p.tasks.length - inReview}</b><span>open tasks</span></div>
       <div><b>${inReview}</b><span>in review</span></div>
@@ -390,6 +436,7 @@ async function viewProject(o, r) {
     if (confirm("Remove this project from lendmyai? Its tasks stay on GitHub but won't be listed.")) toggle(e.target, `/api/projects/${o}/${r}/unlist`, "Project unlisted");
   });
   document.getElementById("list")?.addEventListener("click", (e) => toggle(e.target, `/api/repos/${o}/${r}/init`, "Project listed"));
+  document.getElementById("planConnect")?.addEventListener("click", () => startPlanConnect(full));
 }
 
 // ---------- all tasks ----------
@@ -795,8 +842,8 @@ async function viewPublish() {
     btn.disabled = true; btn.innerHTML = `<span class="spinner"></span> Adding…`;
     try {
       await call("POST", `/api/repos/${full}/init`);
-      toast("Project added. Now add a task.");
-      location.hash = `${projectHref(full)}/new`;
+      toast("Project added. Now plan its tasks.");
+      location.hash = projectHref(full);
     } catch (e) {
       toast(e.message); btn.disabled = false; btn.textContent = "Add project";
     }

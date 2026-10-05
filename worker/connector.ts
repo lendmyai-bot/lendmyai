@@ -1,5 +1,6 @@
 import { withToken } from "../src/github.js";
 import { handleMcpMessage } from "../src/mcp.js";
+import { SESSION_COOKIE, openSession } from "./session.js";
 import {
   OAuthError, checkAuthorize, cleanName, exchange, issueCode, metadata, newContributor, registerClient, seal, unseal, verifyAccess,
   type AuthorizeRequest, type Contributor,
@@ -14,7 +15,7 @@ export interface ConnectorEnv {
   BOT_GITHUB_TOKEN?: string;
 }
 
-const VERSION = "0.4.0";
+const VERSION = "0.5.0";
 const CONTRIBUTOR_COOKIE = "lmai_contributor";
 const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "Authorization, Content-Type, Mcp-Protocol-Version, Mcp-Session-Id", "Access-Control-Allow-Methods": "GET, POST, OPTIONS" };
 
@@ -46,7 +47,7 @@ export async function connector(req: Request, url: URL, env: ConnectorEnv): Prom
     if (path === "/api/connector") {
       // Lets lendmyai.com know this browser finished connecting Claude, so the site can guide setup itself.
       const known = await unseal<Contributor>(env.SESSION_SECRET, "contributor", cookie(req, CONTRIBUTOR_COOKIE));
-      return json(200, known ? { connected: true, name: known.n } : { connected: false });
+      return json(200, known ? { connected: true, name: known.n, github: known.g ?? null } : { connected: false });
     }
     return json(404, { error: "not_found" });
   } catch (e) {
@@ -60,6 +61,8 @@ export async function connector(req: Request, url: URL, env: ConnectorEnv): Prom
 async function authorize(req: Request, url: URL, env: ConnectorEnv): Promise<Response> {
   const secret = env.SESSION_SECRET;
   const known = await unseal<Contributor>(secret, "contributor", cookie(req, CONTRIBUTOR_COOKIE));
+  const github = await signedInGitHub(req, env);
+  const signInHref = `/auth/login?return=${encodeURIComponent(url.pathname + url.search)}`;
 
   if (req.method === "GET") {
     let ar: AuthorizeRequest;
@@ -68,7 +71,7 @@ async function authorize(req: Request, url: URL, env: ConnectorEnv): Promise<Res
     } catch (e) {
       return page("Can't connect", `<p>${esc((e as Error).message)}</p>`, 400);
     }
-    return page("Connect Claude to lendmyai", consentForm(ar, url.searchParams, known));
+    return page("Connect Claude to lendmyai", consentForm(ar, url.searchParams, known, github, signInHref));
   }
 
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
@@ -83,16 +86,20 @@ async function authorize(req: Request, url: URL, env: ConnectorEnv): Promise<Res
   try {
     // Returning contributors keep their identity; they may change their display name.
     who = known ? { u: known.u, n: cleanName(form.get("name") || known.n) } : newContributor(form.get("name") ?? "");
+    if (github) Object.assign(who, { g: github.login, t: github.token });
   } catch (e) {
-    return page("Connect Claude to lendmyai", `<div class="error">${esc((e as Error).message)}</div>${consentForm(ar, form, known)}`, 400);
+    return page("Connect Claude to lendmyai", `<div class="error">${esc((e as Error).message)}</div>${consentForm(ar, form, known, github, signInHref)}`, 400);
   }
   const location = await issueCode(secret, ar, who);
   const headers = new Headers({ Location: location });
-  headers.append("Set-Cookie", `${CONTRIBUTOR_COOKIE}=${await seal(secret, "contributor", who)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${365 * 86400}`);
+  const remembered: Contributor = { u: who.u, n: who.n, ...(who.g ? { g: who.g } : {}) };
+  headers.append("Set-Cookie", `${CONTRIBUTOR_COOKIE}=${await seal(secret, "contributor", remembered)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${365 * 86400}`);
   return new Response(null, { status: 302, headers });
 }
 
-function consentForm(ar: AuthorizeRequest, params: URLSearchParams, known?: Contributor): string {
+function consentForm(
+  ar: AuthorizeRequest, params: URLSearchParams, known: Contributor | undefined, github: { login: string } | undefined, signInHref: string,
+): string {
   const keep = ["client_id", "redirect_uri", "state", "code_challenge", "code_challenge_method", "response_type", "scope", "resource"];
   const hidden = keep.map((k) => (params.get(k) ? `<input type="hidden" name="${k}" value="${esc(params.get(k)!)}">` : "")).join("");
   return `
@@ -108,7 +115,10 @@ function consentForm(ar: AuthorizeRequest, params: URLSearchParams, known?: Cont
       <input id="name" name="name" required minlength="2" maxlength="40" value="${esc(known?.n ?? "")}" placeholder="e.g. Jane D." autofocus>
       <button type="submit">${known ? "Continue" : "Connect"}</button>
     </form>
-    <p class="fine">No GitHub account needed: lendmyai's bot account delivers your work and credits you by this name.</p>`;
+    ${github
+      ? `<p class="linked">✓ Linked to GitHub as <b>@${esc(github.login)}</b>, so Claude can also plan and post tasks for your projects.</p>`
+      : `<p class="fine">No GitHub account needed: lendmyai's bot account delivers your work and credits you by this name.</p>
+         <p class="fine">Own a project? <a href="${esc(signInHref)}">Sign in with GitHub first</a> so Claude can also post tasks for you.</p>`}`;
 }
 
 function page(title: string, body: string, status = 200): Response {
@@ -128,6 +138,8 @@ function page(title: string, body: string, status = 200): Response {
   input { width:100%; font:inherit; padding:10px 12px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--text); }
   button { margin-top:14px; width:100%; font:inherit; font-weight:600; padding:11px; border:0; border-radius:8px; background:var(--accent); color:#fff; cursor:pointer; }
   .fine { color:var(--muted); font-size:13px; margin-top:14px; }
+  .linked { background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:10px 12px; font-size:14px; }
+  a { color:var(--accent); }
   .error { background:var(--danger-soft); color:var(--danger); padding:10px 12px; border-radius:8px; margin-bottom:12px; }
 </style></head><body><main><div class="logo"><span>◆</span>lendmyai</div><h1>${esc(title)}</h1>${body}</main></body></html>`;
   return new Response(html, { status, headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store", "X-Frame-Options": "DENY" } });
@@ -147,7 +159,7 @@ async function mcp(req: Request, origin: string, env: ConnectorEnv): Promise<Res
   const body = await req.json().catch(() => undefined);
   if (!body) return json(400, { jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error" } });
   const messages = Array.isArray(body) ? body : [body];
-  const ctx = { who: { id: who.u, name: who.n } };
+  const ctx = { who: { id: who.u, name: who.n }, github: who.g && who.t ? { login: who.g, token: who.t } : undefined };
 
   const run = async () => (await Promise.all(messages.map((m) => handleMcpMessage(m, ctx, VERSION)))).filter(Boolean);
   // GitHub work happens as the lendmyai bot account.
@@ -170,6 +182,18 @@ async function runWithoutBot(messages: any[], ctx: { who: { id: string; name: st
 }
 
 // ---------- helpers ----------
+
+/** The GitHub account signed in on lendmyai.com in this browser, if any. */
+async function signedInGitHub(req: Request, env: ConnectorEnv): Promise<{ login: string; token: string } | undefined> {
+  const token = await openSession(cookie(req, SESSION_COOKIE), env);
+  if (!token) return undefined;
+  const res = await fetch("https://api.github.com/user", {
+    headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json", "User-Agent": "lendmyai" },
+  });
+  if (!res.ok) return undefined;
+  const { login } = (await res.json()) as { login?: string };
+  return login ? { login, token } : undefined;
+}
 
 function cookie(req: Request, name: string): string | undefined {
   for (const part of (req.headers.get("Cookie") ?? "").split(/;\s*/)) {

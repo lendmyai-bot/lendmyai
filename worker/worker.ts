@@ -1,6 +1,7 @@
 import { HttpError, errorResponse, match, route, sharedRoutes, type Route } from "../src/api.js";
 import { me, withToken } from "../src/github.js";
 import { connector, isConnectorPath } from "./connector.js";
+import { SESSION_COOKIE, SESSION_DAYS, base64url, cookie, openSession, redirect, sealSession, setCookie } from "./session.js";
 
 // lendmyai.com: Cloudflare Worker serving the website (static files in web/)
 // and the shared JSON API. Users sign in with GitHub (OAuth web flow); their
@@ -22,9 +23,11 @@ interface Env {
 /** Seconds that pages for signed-out visitors are cached, to stay within GitHub's rate limits. */
 const PUBLIC_CACHE_SECONDS = 60;
 
-const SESSION_COOKIE = "lmai_session";
 const STATE_COOKIE = "lmai_oauth_state";
-const SESSION_DAYS = 30;
+const RETURN_COOKIE = "lmai_return";
+
+/** Only same-site paths, so sign-in can't be used to redirect elsewhere. */
+const safeReturn = (p: string | null | undefined) => (p && p.startsWith("/") && !p.startsWith("//") && !p.includes("\\") ? p : "/");
 const SCOPE = "public_repo";
 
 const hostedRoutes: Route[] = [
@@ -95,7 +98,8 @@ async function auth(req: Request, url: URL, env: Env): Promise<Response> {
     const state = base64url(crypto.getRandomValues(new Uint8Array(16)));
     const authorize = new URL("https://github.com/login/oauth/authorize");
     authorize.search = new URLSearchParams({ client_id: env.GITHUB_CLIENT_ID, redirect_uri: redirectUri, scope: SCOPE, state }).toString();
-    return redirect(authorize.toString(), [setCookie(STATE_COOKIE, state, 600)]);
+    const back = safeReturn(url.searchParams.get("return"));
+    return redirect(authorize.toString(), [setCookie(STATE_COOKIE, state, 600), setCookie(RETURN_COOKIE, encodeURIComponent(back), 600)]);
   }
 
   if (url.pathname === "/auth/callback") {
@@ -112,73 +116,14 @@ async function auth(req: Request, url: URL, env: Env): Promise<Response> {
     const data = (await res.json().catch(() => ({}))) as { access_token?: string; error_description?: string };
     if (!data.access_token) return new Response(`GitHub sign-in failed: ${data.error_description ?? "unknown error"}`, { status: 400 });
     const session = await sealSession(data.access_token, env);
-    return redirect("/", [setCookie(SESSION_COOKIE, session, SESSION_DAYS * 86400), setCookie(STATE_COOKIE, "", 0)]);
+    const back = safeReturn(decodeURIComponent(cookie(req, RETURN_COOKIE) ?? ""));
+    return redirect(back, [setCookie(SESSION_COOKIE, session, SESSION_DAYS * 86400), setCookie(STATE_COOKIE, "", 0), setCookie(RETURN_COOKIE, "", 0)]);
   }
 
   if (url.pathname === "/auth/logout") {
     return redirect("/", [setCookie(SESSION_COOKIE, "", 0)]);
   }
   return new Response("Not found", { status: 404 });
-}
-
-// ---------- session cookie: AES-GCM encrypted GitHub token ----------
-
-async function sessionKey(env: Env): Promise<CryptoKey> {
-  if (!env.SESSION_SECRET || env.SESSION_SECRET.length < 32) throw new Error("SESSION_SECRET must be set (32+ characters).");
-  const raw = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(env.SESSION_SECRET));
-  return crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["encrypt", "decrypt"]);
-}
-
-async function sealSession(token: string, env: Env): Promise<string> {
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const plain = new TextEncoder().encode(JSON.stringify({ t: token, exp: Date.now() + SESSION_DAYS * 86400_000 }));
-  const sealed = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, await sessionKey(env), plain));
-  const out = new Uint8Array(iv.length + sealed.length);
-  out.set(iv);
-  out.set(sealed, iv.length);
-  return base64url(out);
-}
-
-async function openSession(value: string | undefined, env: Env): Promise<string | undefined> {
-  if (!value) return undefined;
-  try {
-    const bytes = fromBase64url(value);
-    const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: bytes.slice(0, 12) }, await sessionKey(env), bytes.slice(12));
-    const { t, exp } = JSON.parse(new TextDecoder().decode(plain));
-    return typeof t === "string" && exp > Date.now() ? t : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-// ---------- helpers ----------
-
-function base64url(bytes: Uint8Array): string {
-  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
-
-function fromBase64url(s: string): Uint8Array {
-  const bin = atob(s.replace(/-/g, "+").replace(/_/g, "/"));
-  return Uint8Array.from(bin, (c) => c.charCodeAt(0));
-}
-
-function cookie(req: Request, name: string): string | undefined {
-  const header = req.headers.get("Cookie") ?? "";
-  for (const part of header.split(/;\s*/)) {
-    const i = part.indexOf("=");
-    if (i > 0 && part.slice(0, i) === name) return part.slice(i + 1);
-  }
-  return undefined;
-}
-
-function setCookie(name: string, value: string, maxAge: number): string {
-  return `${name}=${value}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`;
-}
-
-function redirect(location: string, cookies: string[]): Response {
-  const headers = new Headers({ Location: location });
-  for (const c of cookies) headers.append("Set-Cookie", c);
-  return new Response(null, { status: 302, headers });
 }
 
 function json(status: number, data: unknown): Response {

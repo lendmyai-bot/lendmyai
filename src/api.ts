@@ -3,6 +3,7 @@ import { REPO_TOPIC, TASK_LABEL, actorOf, marker, parseMarker, stripMarker } fro
 import {
   branchFor, buildCloudPrompt, checkWorkable, claim, claudeCodeUrl, findPushedWork, headRepo, postHandoff, prepareBranch, release, submitPullRequest,
 } from "./contribute.js";
+import { createTask, listProject, managedRepos } from "./projects.js";
 import { currentMonth, parseMonth, rankProjects } from "./rank.js";
 import { listTasks, loadTask, maintainerNotes, type Task } from "./tasks.js";
 
@@ -189,31 +190,16 @@ export const sharedRoutes: Route[] = [
     return { ok: true };
   }),
 
-  route("GET", "/api/repos", async () => {
-    const repos = await api<any[]>("GET", "/user/repos?affiliation=owner,collaborator,organization_member&sort=updated&per_page=100");
-    return repos
-      .filter((r) => !r.private && (r.permissions?.triage || r.permissions?.push))
-      .map((r) => ({ fullName: r.full_name, listed: (r.topics ?? []).includes(REPO_TOPIC) }));
-  }),
+  route("GET", "/api/repos", async () => managedRepos()),
 
   route("POST", "/api/repos/:owner/:repo/init", async ([o, r]) => {
-    const full = `${o}/${r}`;
-    try {
-      await api("POST", `/repos/${full}/labels`, { name: TASK_LABEL, color: "5319e7", description: "Ready for an AI agent (lendmyai)" });
-    } catch (e) {
-      if (!(e instanceof GitHubError && e.status === 422)) throw e;
-    }
-    const { names } = await api<{ names: string[] }>("GET", `/repos/${full}/topics`);
-    if (!names.includes(REPO_TOPIC)) await api("PUT", `/repos/${full}/topics`, { names: [...names, REPO_TOPIC] });
+    await listProject(`${o}/${r}`);
     return { ok: true };
   }),
 
   route("POST", "/api/repos/:owner/:repo/tasks", async ([o, r], body) => {
-    const title = String(body?.title ?? "").trim();
-    if (!title) throw new HttpError(400, "Title is required.");
-    const section = (h: string, v: unknown) => (String(v ?? "").trim() ? `## ${h}\n${String(v).trim()}\n` : "");
-    const text = [section("Goal", body.goal), section("Done when", body.doneWhen), section("Notes", body.notes)].filter(Boolean).join("\n");
-    const issue = await api<any>("POST", `/repos/${o}/${r}/issues`, { title, body: text, labels: [TASK_LABEL] });
-    return { ref: refOf(o, r, issue.number), url: issue.html_url };
+    if (!String(body?.title ?? "").trim()) throw new HttpError(400, "Title is required.");
+    const issue = await createTask(`${o}/${r}`, { title: body.title, goal: body.goal, doneWhen: body.doneWhen, notes: body.notes });
+    return { ref: refOf(o, r, issue.number), url: issue.url };
   }),
 ];

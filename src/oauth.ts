@@ -9,7 +9,14 @@ const enc = new TextEncoder();
 
 export type Kind = "client" | "code" | "access" | "refresh" | "contributor";
 
-export interface Contributor { u: string; n: string }
+/**
+ * A connected contributor: id and display name, plus, for project owners who
+ * linked GitHub, their login (g) and GitHub token (t) so Claude can post tasks
+ * as them. Everything travels inside sealed tokens; nothing is stored.
+ */
+export interface Contributor { u: string; n: string; g?: string; t?: string }
+
+const githubPart = (w: Contributor) => (w.g && w.t ? { g: w.g, t: w.t } : {});
 
 export const ACCESS_SECONDS = 3600;
 const REFRESH_SECONDS = 60 * 86400;
@@ -144,7 +151,7 @@ export function cleanName(name: string): string {
 }
 
 export async function issueCode(secret: string, req: AuthorizeRequest, who: Contributor): Promise<string> {
-  const code = await seal(secret, "code", { c: req.client_id, r: req.redirect_uri, ch: req.code_challenge, u: who.u, n: who.n }, CODE_SECONDS);
+  const code = await seal(secret, "code", { c: req.client_id, r: req.redirect_uri, ch: req.code_challenge, u: who.u, n: who.n, ...githubPart(who) }, CODE_SECONDS);
   const url = new URL(req.redirect_uri);
   url.searchParams.set("code", code);
   if (req.state) url.searchParams.set("state", req.state);
@@ -153,10 +160,10 @@ export async function issueCode(secret: string, req: AuthorizeRequest, who: Cont
 
 async function tokens(secret: string, who: Contributor, clientId: string) {
   return {
-    access_token: await seal(secret, "access", { u: who.u, n: who.n }, ACCESS_SECONDS),
+    access_token: await seal(secret, "access", { u: who.u, n: who.n, ...githubPart(who) }, ACCESS_SECONDS),
     token_type: "Bearer",
     expires_in: ACCESS_SECONDS,
-    refresh_token: await seal(secret, "refresh", { u: who.u, n: who.n, c: clientId }, REFRESH_SECONDS),
+    refresh_token: await seal(secret, "refresh", { u: who.u, n: who.n, ...githubPart(who), c: clientId }, REFRESH_SECONDS),
     scope: "lendmyai",
   };
 }
@@ -170,17 +177,17 @@ async function pkceMatches(verifier: string, challenge: string): Promise<boolean
 export async function exchange(secret: string, form: URLSearchParams) {
   const grant = form.get("grant_type");
   if (grant === "authorization_code") {
-    const code = await unseal<{ c: string; r: string; ch: string; u: string; n: string }>(secret, "code", form.get("code"));
+    const code = await unseal<Contributor & { c: string; r: string; ch: string }>(secret, "code", form.get("code"));
     if (!code) throw new OAuthError("invalid_grant", "Authorization code is invalid or expired.");
     if (form.get("client_id") && form.get("client_id") !== code.c) throw new OAuthError("invalid_grant", "Code was issued to another client.");
     if (form.get("redirect_uri") && form.get("redirect_uri") !== code.r) throw new OAuthError("invalid_grant", "redirect_uri mismatch.");
     if (!(await pkceMatches(form.get("code_verifier") ?? "", code.ch))) throw new OAuthError("invalid_grant", "PKCE verification failed.");
-    return tokens(secret, { u: code.u, n: code.n }, code.c);
+    return tokens(secret, { u: code.u, n: code.n, g: code.g, t: code.t }, code.c);
   }
   if (grant === "refresh_token") {
-    const r = await unseal<{ u: string; n: string; c: string }>(secret, "refresh", form.get("refresh_token"));
+    const r = await unseal<Contributor & { c: string }>(secret, "refresh", form.get("refresh_token"));
     if (!r) throw new OAuthError("invalid_grant", "Refresh token is invalid or expired.");
-    return tokens(secret, { u: r.u, n: r.n }, r.c);
+    return tokens(secret, { u: r.u, n: r.n, g: r.g, t: r.t }, r.c);
   }
   throw new OAuthError("unsupported_grant_type", "Use authorization_code or refresh_token.");
 }
@@ -188,5 +195,5 @@ export async function exchange(secret: string, form: URLSearchParams) {
 export async function verifyAccess(secret: string, header: string | null): Promise<Contributor | undefined> {
   const token = header?.match(/^Bearer\s+(.+)$/i)?.[1];
   const data = await unseal<Contributor>(secret, "access", token);
-  return data && { u: data.u, n: data.n };
+  return data && { u: data.u, n: data.n, ...githubPart(data) };
 }
