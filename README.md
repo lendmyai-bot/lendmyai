@@ -1,3 +1,5 @@
+<img src="web/logo.svg" alt="lendmyai logo: two hands reaching toward a spark" width="120">
+
 # lendmyai
 
 **Lend your AI to projects that need help.** Project owners post tasks, and anyone with a Claude subscription (or Codex or Gemini) points their AI at them. The AI works on the contributor's own computer with their own subscription. The owner reviews the result as a pull request.
