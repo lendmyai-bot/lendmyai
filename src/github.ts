@@ -7,11 +7,22 @@ import type { Comment } from "./protocol.js";
 
 const API = "https://api.github.com";
 
-const requestToken = new AsyncLocalStorage<string>();
+interface RequestAuth {
+  token: string;
+  /** Signed-out website visitor, served with the site's read-only token. */
+  anonymous: boolean;
+}
+
+const requestAuth = new AsyncLocalStorage<RequestAuth>();
 let fallbackToken: (() => string) | undefined;
 
-export function withToken<T>(token: string, fn: () => Promise<T>): Promise<T> {
-  return requestToken.run(token, fn);
+export function withToken<T>(token: string, fn: () => Promise<T>, opts: { anonymous?: boolean } = {}): Promise<T> {
+  return requestAuth.run({ token, anonymous: !!opts.anonymous }, fn);
+}
+
+/** True when the current request has no signed-in user, so permission checks must not use the token's owner. */
+export function isAnonymous(): boolean {
+  return requestAuth.getStore()?.anonymous ?? false;
 }
 
 export function setFallbackToken(provider: () => string): void {
@@ -19,7 +30,7 @@ export function setFallbackToken(provider: () => string): void {
 }
 
 export function getToken(): string {
-  const token = requestToken.getStore() ?? fallbackToken?.();
+  const token = requestAuth.getStore()?.token ?? fallbackToken?.();
   if (!token) throw new GitHubError(401, "Not signed in to GitHub.");
   return token;
 }

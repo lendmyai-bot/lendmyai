@@ -12,7 +12,12 @@ interface Env {
   GITHUB_CLIENT_SECRET: string;
   /** Random string used to encrypt session cookies. */
   SESSION_SECRET: string;
+  /** Read-only token (public repositories only) used to show projects and tasks to signed-out visitors. */
+  GITHUB_PUBLIC_TOKEN?: string;
 }
+
+/** Seconds that pages for signed-out visitors are cached, to stay within GitHub's rate limits. */
+const PUBLIC_CACHE_SECONDS = 60;
 
 const SESSION_COOKIE = "lmai_session";
 const STATE_COOKIE = "lmai_oauth_state";
@@ -42,17 +47,41 @@ async function apiRequest(req: Request, url: URL, env: Env): Promise<Response> {
       if (!req.headers.get("Content-Type")?.startsWith("application/json")) throw new HttpError(415, "Expected JSON");
       body = await req.json().catch(() => ({}));
     }
+    const token = await openSession(cookie(req, SESSION_COOKIE), env);
+    if (!token) return await anonymousRequest(req, url, env);
+
     const m = match(hostedRoutes, req.method, url.pathname);
     if (!m) throw new HttpError(404, "Not found");
-
-    const token = await openSession(cookie(req, SESSION_COOKIE), env);
-    if (!token) throw new HttpError(401, "Not signed in.");
     const data = await withToken(token, () => m.handler(m.params, body, url));
     return json(200, data);
   } catch (e) {
     const { status, error } = errorResponse(e);
     return json(status, { error });
   }
+}
+
+/** Signed-out visitors can read public routes, served with the site's read-only token and cached. */
+async function anonymousRequest(req: Request, url: URL, env: Env): Promise<Response> {
+  if (url.pathname === "/api/me") {
+    if (!env.GITHUB_PUBLIC_TOKEN) throw new HttpError(401, "Not signed in.");
+    return json(200, { login: null, agents: [], mode: "hosted" });
+  }
+  const m = match(hostedRoutes, req.method, url.pathname);
+  if (!m) throw new HttpError(404, "Not found");
+  if (!m.isPublic || !env.GITHUB_PUBLIC_TOKEN) throw new HttpError(401, "Sign in with GitHub to do this.");
+
+  // Responses are identical for every signed-out visitor, so they are cached by URL.
+  const cache = (caches as unknown as { default: Cache }).default;
+  const key = new Request(url.toString(), { method: "GET" });
+  const hit = await cache.match(key);
+  // Cached at Cloudflare only: browsers must not reuse it after the visitor signs in.
+  if (hit) return json(200, await hit.json());
+
+  const data = await withToken(env.GITHUB_PUBLIC_TOKEN, () => m.handler(m.params, undefined, url), { anonymous: true });
+  await cache.put(key, new Response(JSON.stringify(data), {
+    headers: { "Content-Type": "application/json", "Cache-Control": `public, max-age=${PUBLIC_CACHE_SECONDS}` },
+  }));
+  return json(200, data);
 }
 
 async function auth(req: Request, url: URL, env: Env): Promise<Response> {

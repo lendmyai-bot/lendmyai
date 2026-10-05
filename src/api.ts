@@ -1,4 +1,4 @@
-import { GitHubError, api, me, postComment } from "./github.js";
+import { GitHubError, api, isAnonymous, me, postComment } from "./github.js";
 import { REPO_TOPIC, TASK_LABEL, marker, parseMarker, stripMarker } from "./protocol.js";
 import { listTasks, loadTask, maintainerNotes } from "./tasks.js";
 
@@ -13,16 +13,17 @@ export class HttpError extends Error {
 }
 
 export type Handler = (params: string[], body: any, url: URL) => Promise<unknown>;
-export type Route = [method: string, pattern: RegExp, handler: Handler];
+/** `isPublic` routes only read public data, so the website serves them to signed-out visitors too. */
+export type Route = [method: string, pattern: RegExp, handler: Handler, isPublic: boolean];
 
-export function route(method: string, pattern: string, handler: Handler): Route {
-  return [method, new RegExp(`^${pattern.replace(/:(\w+)/g, "([^/]+)")}$`), handler];
+export function route(method: string, pattern: string, handler: Handler, opts: { public?: boolean } = {}): Route {
+  return [method, new RegExp(`^${pattern.replace(/:(\w+)/g, "([^/]+)")}$`), handler, !!opts.public];
 }
 
-export function match(routes: Route[], method: string, pathname: string): { handler: Handler; params: string[] } | null {
-  for (const [m, re, handler] of routes) {
+export function match(routes: Route[], method: string, pathname: string): { handler: Handler; params: string[]; isPublic: boolean } | null {
+  for (const [m, re, handler, isPublic] of routes) {
     const res = re.exec(pathname);
-    if (res && m === method) return { handler, params: res.slice(1).map(decodeURIComponent) };
+    if (res && m === method) return { handler, params: res.slice(1).map(decodeURIComponent), isPublic };
   }
   return null;
 }
@@ -61,7 +62,7 @@ export const sharedRoutes: Route[] = [
       counts.set(full, (counts.get(full) ?? 0) + 1);
     }
     return repos.items.map((r: any) => projectSummary(r, counts.get(r.full_name) ?? 0));
-  }),
+  }, { public: true }),
 
   route("GET", "/api/projects/:owner/:repo", async ([o, r]) => {
     const full = `${o}/${r}`;
@@ -74,11 +75,11 @@ export const sharedRoutes: Route[] = [
     return {
       ...projectSummary(repo, tasks.length),
       listed: (repo.topics ?? []).includes(REPO_TOPIC),
-      canManage: !!(repo.permissions?.triage || repo.permissions?.push),
+      canManage: !isAnonymous() && !!(repo.permissions?.triage || repo.permissions?.push),
       completedTasks: closed.total_count ?? 0,
       tasks,
     };
-  }),
+  }, { public: true }),
 
   route("POST", "/api/projects/:owner/:repo/unlist", async ([o, r]) => {
     const full = `${o}/${r}`;
@@ -87,7 +88,7 @@ export const sharedRoutes: Route[] = [
     return { ok: true };
   }),
 
-  route("GET", "/api/tasks", async (_p, _b, url) => listTasks(url.searchParams.get("repo") || undefined)),
+  route("GET", "/api/tasks", async (_p, _b, url) => listTasks(url.searchParams.get("repo") || undefined), { public: true }),
 
   route("GET", "/api/tasks/:owner/:repo/:n", async ([o, r, n]) => {
     const task = await loadTask(o, r, Number(n));
@@ -103,11 +104,11 @@ export const sharedRoutes: Route[] = [
       state: task.state,
       blocked: task.blocked,
       warnings: task.warnings,
-      canPush: task.canPush,
+      canPush: !isAnonymous() && task.canPush,
       notes: maintainerNotes(task),
       events,
     };
-  }),
+  }, { public: true }),
 
   route("POST", "/api/tasks/:owner/:repo/:n/release", async ([o, r, n]) => {
     const [login, task] = await Promise.all([me(), loadTask(o, r, Number(n))]);

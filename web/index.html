@@ -249,7 +249,8 @@ const repoOfRef = (ref) => ref.split("#")[0];
 // ---------- projects ----------
 async function viewProjects() {
   main.innerHTML = `
-    <div class="row" style="justify-content:space-between;flex-wrap:wrap;align-items:flex-end;margin-bottom:20px">
+    ${signedOut() ? heroHtml(true) : ""}
+    <div class="row" id="projects-list" style="justify-content:space-between;flex-wrap:wrap;align-items:flex-end;margin-bottom:20px;${signedOut() ? "margin-top:40px" : ""}">
       <div><h1>Projects</h1><p class="sub" style="margin:0">Open-source projects looking for help. Pick one and lend your AI to its tasks.</p></div>
       <a href="#/publish"><button class="primary">Add your project</button></a>
     </div>
@@ -563,6 +564,7 @@ async function viewRuns() {
 // ---------- add project ----------
 async function viewPublish() {
   const head = `<h1>Add your project</h1><p class="sub">List one of your public GitHub repositories. Then add tasks you'd like people's AI to help with.</p>`;
+  if (signedOut()) return void (main.innerHTML = head + signInPanel("add your project"));
   main.innerHTML = head + loading("your repositories");
   const repos = await call("GET", "/api/repos");
   main.innerHTML = `${head}
@@ -604,6 +606,7 @@ async function viewPublish() {
 // ---------- new task ----------
 async function viewNewTask(o, r) {
   const full = `${o}/${r}`;
+  if (signedOut()) return void (main.innerHTML = signInPanel("add tasks"));
   main.innerHTML = `
     <a class="back" href="${projectHref(full)}">← ${esc(full)}</a>
     <h1>New task</h1>
@@ -646,22 +649,43 @@ async function viewNewTask(o, r) {
   };
 }
 
-// ---------- landing (website, signed out) ----------
-function viewLanding() {
-  document.querySelector("nav").hidden = true;
-  document.getElementById("who").innerHTML = `<a href="/auth/login"><button>Sign in</button></a>`;
-  main.innerHTML = `
+// ---------- signed-out visitors (website) ----------
+const signedOut = () => me.mode === "hosted" && !me.login;
+const signInButton = (label = "Sign in with GitHub", cls = "primary") => `<a href="/auth/login" data-signin><button class="${cls}">${label}</button></a>`;
+
+// Return to the same page after signing in.
+document.addEventListener("click", (e) => {
+  if (e.target.closest("[data-signin]")) try { sessionStorage.setItem("returnTo", location.hash); } catch {}
+});
+
+function heroHtml(browseLink) {
+  return `
     <section class="hero">
       <h1>Lend your AI to projects that need help</h1>
       <p>Have a Claude subscription? Point it at real tasks that project owners have posted. Your AI does the work on your computer, and the owner reviews the result.</p>
-      <a href="/auth/login"><button class="primary big">Sign in with GitHub</button></a>
-      <p class="fine">Free. You need a free GitHub account; that's where the projects live.</p>
+      ${browseLink ? `<button class="primary big" onclick="document.getElementById('projects-list').scrollIntoView({ behavior: 'smooth' })">Browse projects</button>` : signInButton("Sign in with GitHub", "primary big")}
+      <p class="fine">Free. To lend your AI or add a project you'll need a free GitHub account; that's where the projects live.</p>
     </section>
     <section class="how">
       <div class="panel"><div class="num">1</div><h2>Owners add projects</h2><p>Anyone with a project on GitHub can list it and post tasks they want done, each with a clear "done when".</p></div>
       <div class="panel"><div class="num">2</div><h2>You lend your AI</h2><p>Pick a task and click start. Your AI works on your own computer, using your own subscription.</p></div>
       <div class="panel"><div class="num">3</div><h2>Owner reviews</h2><p>The result goes to the owner as a suggested change. They decide what gets in.</p></div>
     </section>`;
+}
+
+function signInPanel(what) {
+  return `<div class="panel" style="text-align:center;padding:32px 16px">
+    <h2>Sign in to ${what}</h2>
+    <p class="sub">lendmyai uses your GitHub account; projects and tasks live there.</p>
+    ${signInButton()}
+  </div>`;
+}
+
+/** Fallback when the site can't show anything signed out. */
+function viewLanding() {
+  document.querySelector("nav").hidden = true;
+  document.getElementById("who").innerHTML = signInButton("Sign in", "");
+  main.innerHTML = heroHtml(false);
 }
 
 // ---------- boot ----------
@@ -676,10 +700,16 @@ function viewLanding() {
   }
   const hosted = me.mode === "hosted";
   document.querySelector('[data-nav="runs"]').hidden = hosted;
-  document.getElementById("who").innerHTML = hosted
-    ? `<span>@${esc(me.login)}</span><a href="/auth/logout">Sign out</a>`
-    : `${me.agents.length ? me.agents.map((a) => `<span class="pill ok">${esc(a)}</span>`).join("") : `<span class="pill warn">no agent CLI</span>`}<span>@${esc(me.login)}</span>`;
-  render();
+  document.getElementById("who").innerHTML = signedOut()
+    ? signInButton("Sign in", "")
+    : hosted
+      ? `<span>@${esc(me.login)}</span><a href="/auth/logout">Sign out</a>`
+      : `${me.agents.length ? me.agents.map((a) => `<span class="pill ok">${esc(a)}</span>`).join("") : `<span class="pill warn">no agent CLI</span>`}<span>@${esc(me.login)}</span>`;
+
+  let returnTo = "";
+  try { returnTo = sessionStorage.getItem("returnTo") || ""; sessionStorage.removeItem("returnTo"); } catch {}
+  if (me.login && returnTo && returnTo !== location.hash) location.hash = returnTo;
+  else render();
 })();
 </script>
 </body>
