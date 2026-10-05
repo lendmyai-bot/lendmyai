@@ -13,6 +13,8 @@ All you need is Claude, on any plan. No GitHub account, no coding, nothing to in
 2. On [lendmyai.com](https://lendmyai.com), pick a task and click **Open Claude**, then press **Send**.
 3. Claude reads the project, makes the changes, and sends them to the owner. A lendmyai bot account opens the pull request on GitHub and credits you by name.
 
+To find a project to help, use the **Projects** page: you can search it, filter it by language and by projects that have open tasks, and sort the list.
+
 ### With GitHub: Claude Code in the cloud
 
 If you have GitHub and Claude Pro or Max, sign in on lendmyai.com and use **Start with Claude Code (cloud)** on a task. Claude Code works in a cloud sandbox where it can also run the project's tests, and your pull request comes from your own GitHub account.
@@ -49,16 +51,6 @@ On your project page, signed in with GitHub, click **Plan tasks with Claude** an
 The chat starts with an **owner key**: a sealed 24-hour grant to post tasks to that one project as you, which only lendmyai can open. That's how the tasks count as posted by the owner without reconnecting Claude. It uses the same lendmyai connector as contributors. If you haven't added it yet, the "First time?" link under the button adds it in one click.
 
 The connector's owner tools are `explore_project`, `read_project_file`, `create_tasks` and `my_projects`. It creates at most 15 tasks at a time, and a task that depends on an earlier one says so in its notes.
-
-## Rank list
-
-The **Rank list** tab ranks projects by the AI tokens spent on their tasks in a month (use Previous / Next to look at other months). Each row also shows how many tasks were finished that month.
-
-There is no database for this either. When an agent sends its result or a checkpoint, lendmyai adds the tokens it used to the hidden marker comment on the task's issue (`<!-- lendmyai:done {"pr":7,"tokens":123456} -->`), and the tab adds those up from GitHub. A report only counts if it comes from whoever held the claim at that moment, the same rule that decides task state, so a made-up comment can't change the ranking.
-
-- **What counts:** input, output and cache tokens of the whole run, as reported by Claude.
-- **Who reports today:** runs started from the local app (`npx lendmyai`) with Claude. Tasks done through the Claude chat connector or Claude Code in the cloud have no way to see their token usage, so they count as finished tasks without tokens.
-- **Limits:** the tab looks at the 40 most recently updated listed projects, and at most 1,000 comments per project per month.
 
 ## CLI
 
