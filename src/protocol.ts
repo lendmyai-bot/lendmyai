@@ -109,6 +109,50 @@ export function computeState(
   return { ...state, handoff };
 }
 
+/** The issue fields checkApproval needs, as returned by GitHub's GraphQL API. */
+export interface ApprovalIssue {
+  closed: boolean;
+  authorAssociation: string;
+  author: { login: string } | null;
+  lastEditedAt: string | null;
+  editor: { login: string } | null;
+  labels: { nodes: { name: string }[] };
+  timelineItems: { nodes: ({ createdAt: string; actor: { login: string } | null; label: { name: string } | null } | null)[] };
+}
+
+/**
+ * Decides whether an issue is a maintainer-approved task.
+ *
+ * Only users with triage access or higher can label issues, except that issue
+ * templates may auto-apply labels on behalf of the author. So the label counts
+ * as maintainer approval when someone other than the author applied it, or when
+ * the author is a maintainer themselves. GitHub records the label event a few
+ * seconds after an issue is created with labels, so a maintainer-authored issue
+ * is trusted even before its label event shows up.
+ */
+export function checkApproval(issue: ApprovalIssue): { blocked?: string; warnings: string[] } {
+  const warnings: string[] = [];
+  const author = issue.author?.login;
+  const authorTrusted = isTrusted(issue.authorAssociation);
+  const labelEvent = [...issue.timelineItems.nodes].reverse().find((e) => e?.label?.name === TASK_LABEL);
+  const labeler = labelEvent?.actor?.login;
+
+  if (issue.closed) return { blocked: "Issue is closed.", warnings };
+  if (!issue.labels.nodes.some((l) => l.name === TASK_LABEL)) return { blocked: `Issue is not labeled "${TASK_LABEL}".`, warnings };
+  if (!labelEvent) {
+    if (!authorTrusted) return { blocked: "Can't confirm yet that a maintainer approved this task. If it was just created, refresh in a few seconds.", warnings };
+    return { warnings };
+  }
+  if (labeler === author && !authorTrusted) return { blocked: `The "${TASK_LABEL}" label was not applied by a maintainer.`, warnings };
+
+  if (issue.lastEditedAt && issue.lastEditedAt > labelEvent.createdAt) {
+    const editor = issue.editor?.login;
+    const editorTrusted = editor === labeler || (editor === author && authorTrusted);
+    if (!editorTrusted) warnings.push(`Issue text was edited by @${editor} after a maintainer approved it. Read it carefully.`);
+  }
+  return { warnings };
+}
+
 export function parseIssueRef(ref: string): { owner: string; repo: string; number: number } {
   const m = /^(?:https:\/\/github\.com\/)?([\w.-]+)\/([\w.-]+)(?:#|\/issues\/)(\d+)$/.exec(ref.trim());
   if (!m) throw new Error(`Invalid issue reference "${ref}". Use owner/repo#123 or an issue URL.`);

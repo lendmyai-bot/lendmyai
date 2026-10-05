@@ -2,6 +2,7 @@ import { api, getComments, graphql, prStateFetcher } from "./github.js";
 import {
   REPO_TOPIC,
   TASK_LABEL,
+  checkApproval,
   computeState,
   isTrusted,
   parseMarker,
@@ -54,26 +55,7 @@ export async function loadTask(owner: string, repo: string, number: number): Pro
 
   const comments = await getComments(owner, repo, number);
   const state = await stateOf(owner, repo, comments);
-  const warnings: string[] = [];
-  let blocked: string | undefined;
-
-  // Only users with triage access or higher can label issues, except that issue
-  // templates may auto-apply labels on behalf of the author. So the label counts
-  // as maintainer approval when someone other than the author applied it, or
-  // when the author is a maintainer themselves.
-  const author = issue.author?.login;
-  const labelEvent = [...issue.timelineItems.nodes].reverse().find((e: any) => e?.label?.name === TASK_LABEL);
-  const hasLabel = issue.labels.nodes.some((l: any) => l.name === TASK_LABEL);
-  const labeler = labelEvent?.actor?.login;
-  if (issue.closed) blocked = "Issue is closed.";
-  else if (!hasLabel) blocked = `Issue is not labeled "${TASK_LABEL}".`;
-  else if (!labelEvent || (labeler === author && !isTrusted(issue.authorAssociation))) {
-    blocked = `The "${TASK_LABEL}" label was not applied by a maintainer.`;
-  } else if (issue.lastEditedAt && issue.lastEditedAt > labelEvent.createdAt) {
-    const editor = issue.editor?.login;
-    const editorTrusted = editor === labeler || (editor === author && isTrusted(issue.authorAssociation));
-    if (!editorTrusted) warnings.push(`Issue text was edited by @${editor} after a maintainer approved it. Read it carefully.`);
-  }
+  const { blocked, warnings } = checkApproval(issue);
 
   return {
     owner,

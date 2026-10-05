@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { computeState, marker, parseIssueRef, type Comment } from "./protocol.js";
+import { TASK_LABEL, checkApproval, computeState, marker, parseIssueRef, type ApprovalIssue, type Comment } from "./protocol.js";
 
 const NOW = new Date("2026-10-05T12:00:00Z");
 const LATER = "2026-10-06T12:00:00Z";
@@ -55,6 +55,45 @@ test("done blocks claims while PR is open, reopens when PR is closed unmerged", 
 test("only the claim holder can mark done", () => {
   const s = computeState([claim("alice", "10:00"), c("bob", "10:05", marker("done", { pr: 9 }))], NOW);
   assert.equal(s.kind, "claimed");
+});
+
+function issue(o: { author?: string; association?: string; events?: [actor: string, at: string][]; labeled?: boolean; editedAt?: string; editor?: string }): ApprovalIssue {
+  return {
+    closed: false,
+    authorAssociation: o.association ?? "NONE",
+    author: { login: o.author ?? "stranger" },
+    lastEditedAt: o.editedAt ?? null,
+    editor: o.editor ? { login: o.editor } : null,
+    labels: { nodes: o.labeled === false ? [] : [{ name: TASK_LABEL }] },
+    timelineItems: { nodes: (o.events ?? []).map(([actor, at]) => ({ createdAt: at, actor: { login: actor }, label: { name: TASK_LABEL } })) },
+  };
+}
+
+test("approval: owner creates an issue with the label, before GitHub records the label event", () => {
+  assert.equal(checkApproval(issue({ author: "owner", association: "OWNER" })).blocked, undefined);
+});
+
+test("approval: maintainer labels a stranger's issue", () => {
+  assert.equal(checkApproval(issue({ author: "stranger", events: [["owner", "2026-10-05T10:00:00Z"]] })).blocked, undefined);
+});
+
+test("approval: label auto-applied to a stranger's own issue is rejected", () => {
+  assert.match(checkApproval(issue({ author: "stranger", events: [["stranger", "2026-10-05T10:00:00Z"]] })).blocked ?? "", /not applied by a maintainer/);
+});
+
+test("approval: stranger's issue with no label event yet is not trusted", () => {
+  assert.match(checkApproval(issue({ author: "stranger" })).blocked ?? "", /Can't confirm yet/);
+});
+
+test("approval: unlabeled issue is blocked", () => {
+  assert.match(checkApproval(issue({ author: "owner", association: "OWNER", labeled: false })).blocked ?? "", /not labeled/);
+});
+
+test("approval: stranger edits the text after approval triggers a warning", () => {
+  const i = issue({ author: "stranger", events: [["owner", "2026-10-05T10:00:00Z"]], editedAt: "2026-10-05T11:00:00Z", editor: "stranger" });
+  const res = checkApproval(i);
+  assert.equal(res.blocked, undefined);
+  assert.equal(res.warnings.length, 1);
 });
 
 test("parseIssueRef accepts short refs and URLs", () => {
