@@ -174,8 +174,12 @@ export function defaultChoice(r: Review): Choice {
   return !r.hasWork ? "keep" : r.status === "DONE" ? "pr" : "checkpoint";
 }
 
+/**
+ * Finishes a run. `tokens` is the agent's total token usage when it reported
+ * one; it is recorded with the pull request or checkpoint for the Rank list.
+ */
 export async function complete(
-  task: Task, ws: Workspace, login: string, agent: string, choice: Choice, r: Review,
+  task: Task, ws: Workspace, login: string, agent: string, choice: Choice, r: Review, tokens?: number,
 ): Promise<{ message: string; url?: string }> {
   if (choice === "release") {
     await release(task, login, "gave up");
@@ -194,10 +198,10 @@ export async function complete(
   git(["push", "-q", ...(ownFork ? ["--force"] : []), repoUrl(ws.head), `HEAD:refs/heads/${ws.branch}`], ws.dir, { quiet: true });
 
   if (choice === "checkpoint") {
-    await postHandoff(task, login, agent, ws.head, ws.branch, r.note);
+    await postHandoff(task, login, agent, ws.head, ws.branch, r.note, tokens);
     return { message: "Checkpoint pushed and task handed off", url: `https://github.com/${ws.head}/tree/${ws.branch}` };
   }
 
-  const pr = await submitPullRequest(task, ws.head, ws.branch, login, agent, r.note);
+  const pr = await submitPullRequest(task, ws.head, ws.branch, login, agent, r.note, tokens);
   return { message: "Pull request opened", url: pr.html_url };
 }

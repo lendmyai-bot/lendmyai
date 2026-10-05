@@ -117,6 +117,7 @@
   table { width: 100%; border-collapse: collapse; }
   td, th { text-align: left; padding: 10px 8px; border-top: 1px solid var(--border); }
   th { color: var(--muted); font-weight: 500; font-size: 12px; border-top: 0; }
+  td.right, th.right { text-align: right; }
   .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; vertical-align: -2px; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
@@ -169,6 +170,7 @@
     <nav>
       <a href="#/" data-nav="projects">Projects</a>
       <a href="#/tasks" data-nav="tasks">All tasks</a>
+      <a href="#/rank" data-nav="rank">Rank list</a>
       <a href="#/publish" data-nav="publish">Add project</a>
       <a href="#/runs" data-nav="runs">Runs</a>
     </nav>
@@ -308,6 +310,7 @@ async function render() {
     if (view === "publish") return await viewPublish();
     if (view === "runs") return await viewRuns();
     if (view === "tasks") return await viewBoard();
+    if (view === "rank") return await viewRank(parts[1]);
     return await viewProjects();
   } catch (e) {
     main.innerHTML = errorBox(e);
@@ -424,6 +427,53 @@ function card(t, showRepo) {
     <div class="title">${esc(t.title)}</div>
     ${statePill(t.state)}
   </a>`;
+}
+
+// ---------- rank list ----------
+const monthKey = (d) => `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+const shiftMonth = (key, by) => { const [y, m] = key.split("-").map(Number); return monthKey(new Date(Date.UTC(y, m - 1 + by, 1))); };
+const monthLabel = (key) => { const [y, m] = key.split("-").map(Number); return new Date(Date.UTC(y, m - 1, 1)).toLocaleString("en-US", { month: "long", year: "numeric", timeZone: "UTC" }); };
+const compact = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
+const tokenCount = (n) => (n >= 1000 ? compact.format(n) : String(n));
+
+function rankRow(p) {
+  return `<tr>
+    <td>${p.rank}</td>
+    <td><div class="row">${p.avatar ? `<img class="avatar" src="${esc(p.avatar)}&s=48" alt="">` : ""}<a href="${projectHref(p.fullName)}">${esc(p.fullName)}</a></div></td>
+    <td class="right mono" title="${p.tokens.toLocaleString("en-US")} tokens">${p.tokens ? tokenCount(p.tokens) : "–"}</td>
+    <td class="right">${p.tasks}</td>
+  </tr>`;
+}
+
+async function viewRank(month) {
+  const current = monthKey(new Date());
+  const key = /^\d{4}-(0[1-9]|1[0-2])$/.test(month || "") ? month : current;
+  main.innerHTML = `
+    <h1>Rank list</h1>
+    <p class="sub">Projects with the most AI token spending in a month.</p>
+    <div class="row" style="margin-bottom:20px;flex-wrap:wrap">
+      <a href="#/rank/${shiftMonth(key, -1)}"><button>← Previous</button></a>
+      <b style="min-width:150px;text-align:center">${esc(monthLabel(key))}</b>
+      ${key < current ? `<a href="#/rank/${shiftMonth(key, 1)}"><button>Next →</button></a>` : `<button disabled>Next →</button>`}
+    </div>
+    <div id="rank">${loading("rank list")}</div>`;
+  const box = document.getElementById("rank");
+  try {
+    const data = await call("GET", `/api/rank?month=${encodeURIComponent(key)}`);
+    box.innerHTML = data.projects.length
+      ? `<div class="stats">
+           <div><b title="${data.totalTokens.toLocaleString("en-US")} tokens">${tokenCount(data.totalTokens)}</b><span>tokens reported</span></div>
+           <div><b>${data.projects.length}</b><span>project${data.projects.length === 1 ? "" : "s"}</span></div>
+         </div>
+         <div class="panel"><table>
+           <tr><th>#</th><th>Project</th><th class="right">Tokens</th><th class="right">Tasks done</th></tr>
+           ${data.projects.map(rankRow).join("")}
+         </table></div>
+         <p class="fine">Tokens are reported by the contributor's agent when it sends its result or a checkpoint. For now that's runs started from the local app with Claude; tasks done through the Claude chat connector or Claude Code in the cloud count as done, without tokens.</p>`
+      : `<div class="panel empty">No tasks were finished in ${esc(monthLabel(key))} yet.</div>`;
+  } catch (e) {
+    box.innerHTML = errorBox(e);
+  }
 }
 
 // ---------- task ----------

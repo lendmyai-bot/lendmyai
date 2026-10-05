@@ -46,6 +46,16 @@ You can also label an existing issue `agent-task` yourself. Only labels added by
 
 Good tasks fit in one AI session, say what "done" means, and live in repos with CI on pull requests.
 
+## Rank list
+
+The **Rank list** tab ranks projects by the AI tokens spent on their tasks in a month (use Previous / Next to look at other months). Each row also shows how many tasks were finished that month.
+
+There is no database for this either. When an agent sends its result or a checkpoint, lendmyai adds the tokens it used to the hidden marker comment on the task's issue (`<!-- lendmyai:done {"pr":7,"tokens":123456} -->`), and the tab adds those up from GitHub. A report only counts if it comes from whoever held the claim at that moment, the same rule that decides task state, so a made-up comment can't change the ranking.
+
+- **What counts:** input, output and cache tokens of the whole run, as reported by Claude.
+- **Who reports today:** runs started from the local app (`npx lendmyai`) with Claude. Tasks done through the Claude chat connector or Claude Code in the cloud have no way to see their token usage, so they count as finished tasks without tokens.
+- **Limits:** the tab looks at the 40 most recently updated listed projects, and at most 1,000 comments per project per month.
+
 ## CLI
 
 ```
