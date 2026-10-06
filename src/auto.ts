@@ -16,6 +16,7 @@ export interface AutoOptions {
   agent?: string;
   agentCmd?: string;
   model?: string;
+  allowShell?: boolean;
   yes?: boolean;
   parallel?: number;
   max?: number;
@@ -42,7 +43,8 @@ export async function auto(repoFilter: string | undefined, opts: AutoOptions): P
   for (const t of tasks) for (const w of t.warnings) console.warn(`⚠  ${t.owner}/${t.repo}#${t.number}: ${w}`);
   if (opts.dryRun) return;
 
-  const agent = resolveAgent({ agent: opts.agent, custom: opts.agentCmd, model: opts.model });
+  const agent = resolveAgent({ agent: opts.agent, custom: opts.agentCmd, model: opts.model, allowShell: opts.allowShell });
+  if (!opts.allowShell) console.log("The agent can edit files but cannot run commands (so it can't build or test). Add --allow-shell to let it run npm, npx and node.");
   if (!(await confirm(`\nClaim these and run ${agent.name} unattended (edits only, nothing is pushed until each run finishes)?`, opts.yes))) return;
 
   mkdirSync(LOG_DIR, { recursive: true });
@@ -93,7 +95,11 @@ async function runOne(task: Task, login: string, agent: ResolvedAgent, active: S
   try {
     const ws = await begin(task, login, agent.name, log);
     const file = createWriteStream(join(LOG_DIR, `${task.owner}__${task.repo}__${task.number}.log`));
-    const run = streamAgent(agent.streamCommand(buildPrompt(task)), ws.dir, (line) => file.write(`${line}\n`));
+    const run = streamAgent(agent.streamCommand(buildPrompt(task)), ws.dir, (line) => {
+      file.write(`${line}\n`);
+      // Live progress: the first line of each step, shortened.
+      log(`  ${line.split("\n")[0].slice(0, 110)}`);
+    });
     const handle = { kill: run.kill, task };
     active.add(handle);
     log(`${agent.name} started`);

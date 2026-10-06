@@ -50,7 +50,7 @@ You can hold one task at a time. Claims expire after 24 hours.
 npx lendmyai auto --parallel 3
 ```
 
-This finds tasks nobody is working on (including handed-off ones), claims up to `--max` of them (default 5), and runs your agent on `--parallel` of them at a time (default 2, max 5). Runs are unattended, edits only. Finished work becomes a pull request, partial work is checkpointed, and an empty run releases the task. Logs go to `~/.lendmyai/logs`; Ctrl+C releases what is still running. Use `--dry-run` to preview.
+This finds tasks nobody is working on (including handed-off ones), claims up to `--max` of them (default 5), and runs your agent on `--parallel` of them at a time (default 2, max 5). Runs are unattended, edits only. Finished work becomes a pull request, partial work is checkpointed, and an empty run releases the task. Progress is printed live and logs go to `~/.lendmyai/logs`. By default the agent can edit files but not run commands; add `--allow-shell` to let Claude run `npm`, `npx` and `node` so it can build and test (project scripts then run on your computer); Ctrl+C releases what is still running. Use `--dry-run` to preview.
 
 ## Add your project (owners)
 

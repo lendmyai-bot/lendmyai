@@ -36,6 +36,7 @@ lendmyai login | logout</code></pre>
 <tr><td><code>--dry-run</code></td><td>Only list the tasks that would be picked up</td></tr>
 <tr><td><code>--agent</code>, <code>--agent-cmd</code></td><td>Choose the AI CLI, as with <code>work</code></td></tr>
 <tr><td><code>--model</code></td><td>Pick the model. It is passed to the agent (<code>work</code> takes it too) and recorded on the pull request</td></tr>
+<tr><td><code>--allow-shell</code></td><td>Let the unattended Claude run <code>npm</code>, <code>npx</code>, <code>node</code> and read-only <code>git</code>/<code>ls</code>/<code>grep</code>, so it can build and test. Off by default; project scripts run on your computer, so use it on projects you trust</td></tr>
 <tr><td><code>--yes</code></td><td>Skip the confirmation</td></tr></table>
 <p>Each task runs unattended in its own checkout, with edits only and no shell approvals. When a run ends, finished work becomes a pull request, partial work is checkpointed for the next contributor, and a run that changed nothing releases the task. Output for each task is saved in <code>~/.lendmyai/logs</code>. Press Ctrl+C to stop and release the tasks still running.</p>
 <div class="note warn">Claims expire after 24 hours. Batch mode lifts the one-task-at-a-time limit, so use a number you can review.</div>
