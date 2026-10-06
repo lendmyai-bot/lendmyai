@@ -166,6 +166,66 @@
   .hero p { color: var(--muted); font-size: 17px; margin: 0 0 24px; }
   .hero .fine { font-size: 13px; margin-top: 12px; }
   button.big { font-size: 16px; padding: 12px 22px; }
+
+  /* ---------- landing page ---------- */
+  .lm-hero { text-align: center; max-width: 860px; margin: 40px auto 24px; position: relative; }
+  .lm-hero::before { content: ""; position: absolute; inset: -60px -10% auto -10%; height: 340px; z-index: -1; background: radial-gradient(60% 70% at 50% 0%, var(--accent-soft), transparent 70%); }
+  .lm-eyebrow { display: inline-block; font-size: 13px; font-weight: 600; padding: 5px 12px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); margin-bottom: 18px; }
+  .lm-hero h1 { font-size: clamp(32px, 6vw, 54px); line-height: 1.08; letter-spacing: -.02em; margin: 0 0 16px; }
+  .lm-grad { background: linear-gradient(90deg, var(--accent), #d36bff); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .lm-lead { color: var(--muted); font-size: clamp(16px, 2.2vw, 19px); line-height: 1.55; max-width: 640px; margin: 0 auto 26px; }
+  .lm-cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .lm-cta a { text-decoration: none; }
+  button.big { padding: 12px 22px; font-size: 16px; border-radius: 10px; }
+  .lm-diagram { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; align-items: stretch; gap: 10px; margin: 36px auto 0; text-align: center; }
+  .lm-node { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px 12px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 4px; align-items: center; }
+  .lm-node b { font-size: 16px; }
+  .lm-node > span:last-child { color: var(--muted); font-size: 13px; line-height: 1.4; }
+  .lm-node-main { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+  .lm-ico { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 12px; background: var(--accent-soft); color: var(--accent); margin-bottom: 4px; }
+  .lm-arrow { align-self: center; color: var(--muted); font-size: 22px; }
+  .lm-section { max-width: 960px; margin: 72px auto 0; }
+  .lm-h2 { font-size: clamp(24px, 4vw, 32px); letter-spacing: -.01em; text-align: center; margin: 0 0 6px; }
+  .lm-sub { color: var(--muted); text-align: center; margin: 0 0 28px; font-size: 16px; }
+  .lm-section .lm-h2 + .lm-two, .lm-section .lm-h2 + .lm-safe { margin-top: 28px; }
+  .lm-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  .lm-step { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; box-shadow: var(--shadow); }
+  .lm-step-you { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+  .lm-step h3 { margin: 12px 0 6px; font-size: 18px; text-transform: none; letter-spacing: 0; color: var(--text); }
+  .lm-step p { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.55; }
+  .lm-num { display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--accent); color: #fff; font-weight: 700; }
+  .lm-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .lm-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 24px; box-shadow: var(--shadow); display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+  .lm-card h3 { margin: 6px 0 4px; font-size: 22px; text-transform: none; letter-spacing: 0; color: var(--text); }
+  .lm-card a { text-decoration: none; }
+  .lm-tag { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: var(--ok-soft); color: var(--ok); }
+  .lm-tag-owner { background: var(--accent-soft); color: var(--accent); }
+  .lm-list { margin: 8px 0 18px; padding: 0; list-style: none; flex: 1; }
+  .lm-list li { position: relative; padding: 5px 0 5px 26px; color: var(--muted); font-size: 15px; line-height: 1.5; }
+  .lm-list li::before { content: "✓"; position: absolute; left: 0; color: var(--ok); font-weight: 700; }
+  .lm-safe { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+  .lm-safe > div { display: flex; flex-direction: column; gap: 6px; }
+  .lm-safe b { font-size: 15px; }
+  .lm-safe > div > span:last-child { color: var(--muted); font-size: 14px; line-height: 1.5; }
+  .lm-ico-s { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: var(--accent-soft); color: var(--accent); }
+  .lm-faq { max-width: 720px; }
+  .lm-faq .lm-h2 { margin-bottom: 20px; }
+  .lm-faq details { border-top: 1px solid var(--border); padding: 14px 4px; }
+  .lm-faq details:last-of-type { border-bottom: 1px solid var(--border); }
+  .lm-faq summary { cursor: pointer; font-weight: 600; font-size: 16px; list-style: none; display: flex; justify-content: space-between; gap: 12px; }
+  .lm-faq summary::-webkit-details-marker { display: none; }
+  .lm-faq summary::after { content: "+"; color: var(--accent); font-size: 20px; line-height: 1; }
+  .lm-faq details[open] summary::after { content: "–"; }
+  .lm-faq p { margin: 10px 0 0; color: var(--muted); font-size: 15px; line-height: 1.6; }
+  .lm-final { max-width: 960px; margin: 72px auto 24px; text-align: center; padding: 44px 20px; border-radius: 20px; background: linear-gradient(135deg, var(--accent-soft), var(--surface-2)); border: 1px solid var(--border); }
+  .lm-final h2 { margin: 0 0 6px; font-size: clamp(24px, 4vw, 32px); }
+  .lm-final p { color: var(--muted); margin: 0 0 20px; }
+  @media (max-width: 760px) {
+    .lm-diagram { grid-template-columns: 1fr; }
+    .lm-arrow { transform: rotate(90deg); }
+    .lm-steps, .lm-two, .lm-safe { grid-template-columns: 1fr; }
+    .lm-section { margin-top: 56px; }
+  }
   .how { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
   @media (max-width: 760px) { .how { grid-template-columns: 1fr; } }
   .how .panel { margin-top: 0; }
@@ -1193,18 +1253,87 @@ document.addEventListener("click", (e) => {
 });
 
 function heroHtml(browseLink) {
+  const browse = browseLink
+    ? `<button class="primary big" onclick="document.getElementById('projects-list').scrollIntoView({ behavior: 'smooth' })">Browse projects</button>`
+    : signInButton("Sign in with GitHub", "primary big");
   return `
-    <section class="hero">
-      <h1>Lend your AI to projects that need help</h1>
-      <p>Have Claude? Pick a task a project owner posted, and Claude does the work for you right in your Claude chat. No coding or GitHub account needed. The owner reviews the result.</p>
-      ${browseLink ? `<button class="primary big" onclick="document.getElementById('projects-list').scrollIntoView({ behavior: 'smooth' })">Browse projects</button>` : signInButton("Sign in with GitHub", "primary big")}
-      <p class="fine">Free. Works with any Claude plan. Only project owners need GitHub.</p>
+    <section class="lm-hero">
+      <span class="lm-eyebrow">Free · works with any Claude plan</span>
+      <h1>Your AI can help build<br><span class="lm-grad">open-source projects</span></h1>
+      <p class="lm-lead">Pick a task, press one button, and your Claude does the work. The project owner checks the result before anything changes. No coding. No GitHub account.</p>
+      <div class="lm-cta">${browse}<a href="#/publish"><button class="big">I have a project</button></a></div>
       <p class="fine" id="solved-counter"><span class="spinner"></span></p>
+
+      <div class="lm-diagram" aria-label="How a task travels">
+        <div class="lm-node"><span class="lm-ico"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M9 8h6M9 12h6M9 16h3"/></svg></span><b>A task</b><span>An owner describes what they need</span></div>
+        <span class="lm-arrow" aria-hidden="true">→</span>
+        <div class="lm-node lm-node-main"><span class="lm-ico"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z"/></svg></span><b>Your AI</b><span>Claude does the work on your side</span></div>
+        <span class="lm-arrow" aria-hidden="true">→</span>
+        <div class="lm-node"><span class="lm-ico"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="9" r="2.5"/><path d="M6 8.5v7M18 11.5c0 4-5 3-10.5 5.5"/></svg></span><b>Owner reviews</b><span>They accept it or ask for changes</span></div>
+      </div>
     </section>
-    <section class="how">
-      <div class="panel"><div class="num">1</div><h2>Owners add projects</h2><p>Anyone with a project on GitHub can list it and post tasks they want done, each with a clear "done when".</p></div>
-      <div class="panel"><div class="num">2</div><h2>You lend your AI</h2><p>Pick a task and click <b>Open Claude</b>. Claude does the work in your normal Claude chat, with any Claude plan.</p></div>
-      <div class="panel"><div class="num">3</div><h2>Owner reviews</h2><p>The result goes to the owner as a suggested change. They decide what gets in.</p></div>
+
+    <section class="lm-section" id="how">
+      <h2 class="lm-h2">How it works</h2>
+      <p class="lm-sub">Three steps. You only do the middle one.</p>
+      <div class="lm-steps">
+        <div class="lm-step"><span class="lm-num">1</span><h3>Owners post tasks</h3><p>People who run a project on GitHub write small tasks with a clear "done when". Each one is something an AI can finish in one go.</p></div>
+        <div class="lm-step lm-step-you"><span class="lm-num">2</span><h3>You press one button</h3><p>Choose a task and click <b>Open Claude</b>. Claude opens with everything already typed in. Press Send, then relax.</p></div>
+        <div class="lm-step"><span class="lm-num">3</span><h3>The owner decides</h3><p>Your work arrives as a suggested change with your name on it. The owner reads it and chooses what goes in.</p></div>
+      </div>
+    </section>
+
+    <section class="lm-section">
+      <h2 class="lm-h2">Pick your side</h2>
+      <div class="lm-two">
+        <div class="lm-card">
+          <span class="lm-tag">I have Claude</span>
+          <h3>Lend your AI</h3>
+          <ul class="lm-list">
+            <li>Works with any Claude plan, even the free one</li>
+            <li>No coding and no GitHub account needed</li>
+            <li>Your name is credited on every change</li>
+            <li>Power users: a Mac app can work on several tasks for you at once</li>
+          </ul>
+          ${browseLink ? `<button class="primary" onclick="document.getElementById('projects-list').scrollIntoView({ behavior: 'smooth' })">Find a task</button>` : signInButton("Sign in with GitHub", "primary")}
+        </div>
+        <div class="lm-card">
+          <span class="lm-tag lm-tag-owner">I have a project</span>
+          <h3>Get help with yours</h3>
+          <ul class="lm-list">
+            <li>List a public GitHub repo in a few clicks</li>
+            <li>Let Claude plan the tasks for you, or write your own</li>
+            <li>Review everything in one place; the Mac app reviews and merges in one click</li>
+            <li>Nothing is merged unless you say so</li>
+          </ul>
+          <a href="#/publish"><button class="primary">Add your project</button></a>
+        </div>
+      </div>
+    </section>
+
+    <section class="lm-section">
+      <h2 class="lm-h2">Built to be safe</h2>
+      <div class="lm-safe">
+        <div><span class="lm-ico-s"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg></span><b>Owners stay in control</b><span>Every change is a suggestion. Only the owner can accept it.</span></div>
+        <div><span class="lm-ico-s"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12l8-8M16 7l3 3"/></svg></span><b>Your AI stays yours</b><span>lendmyai never sees your Claude login or password.</span></div>
+        <div><span class="lm-ico-s"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9.5"/></svg></span><b>Approved tasks only</b><span>Your AI only works on tasks a project maintainer approved.</span></div>
+        <div><span class="lm-ico-s"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-4.4-7-10a4 4 0 017-2.6A4 4 0 0119 11c0 5.6-7 10-7 10z"/></svg></span><b>Free and open</b><span>No fees, no hosting of your code. Everything lives on GitHub.</span></div>
+      </div>
+    </section>
+
+    <section class="lm-section lm-faq">
+      <h2 class="lm-h2">Questions</h2>
+      <details><summary>Do I need to know how to code?</summary><p>No. Claude writes the code. You just choose a task and press Send.</p></details>
+      <details><summary>Does it cost anything?</summary><p>lendmyai is free. Your AI work uses your own Claude plan, the same as any chat, so a free plan works too.</p></details>
+      <details><summary>Do I need a GitHub account?</summary><p>Not to lend your AI. You connect lendmyai to Claude once and a lendmyai helper account opens the change for you, crediting your name. Project owners do need GitHub, because their project lives there.</p></details>
+      <details><summary>What if the AI gets it wrong?</summary><p>Nothing breaks. The owner reviews every change and can ask for fixes or say no. If a task can't be done, the AI explains why so the next person can try again.</p></details>
+      <details><summary>Can I stop at any time?</summary><p>Yes. Close the chat, or give the task back, and someone else can pick it up.</p></details>
+    </section>
+
+    <section class="lm-final">
+      <h2>Ready to lend a hand?</h2>
+      <p>It takes about a minute to start.</p>
+      <div class="lm-cta">${browse}<a href="https://docs.lendmyai.com" target="_blank" rel="noopener"><button class="big">Read the docs</button></a></div>
     </section>`;
 }
 
