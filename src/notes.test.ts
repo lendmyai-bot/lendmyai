@@ -16,3 +16,11 @@ test("only images lendmyai stored are fetched for the agent", () => {
   } as unknown as Task;
   assert.deepEqual(noteImageUrls(task), ["https://raw.githubusercontent.com/o/r/lendmyai-assets/lendmyai-assets/33/1-1.png"]);
 });
+
+test("the agent prompt carries the ponytail rules, framed as how rather than whether", async () => {
+  const { buildPrompt } = await import("./work.js");
+  const task = { owner: "o", repo: "r", number: 1, title: "T", body: "B", comments: [], state: { kind: "available" }, warnings: [] } as unknown as Task;
+  const prompt = buildPrompt(task);
+  assert.match(prompt, /lazy senior developer/);
+  assert.match(prompt, /decide HOW to implement it, not whether/);
+});
