@@ -42,7 +42,7 @@ lendmyai login | logout</code></pre>
 <h2 id="tags">Model and effort tags</h2>
 <p>When a run opens a pull request, it says which agent, model and effort made the change, in the description, the commit message and the task comments. It also adds labels such as <code>agent:claude</code>, <code>model:opus</code> and <code>effort:high</code>. Labels are added only when your account may label that repository; the text is always there.</p>
 <pre><code>npx lendmyai work owner/repo#123 --model opus --effort high</code></pre>
-<p>Only what you set with <code>--model</code> and <code>--effort</code> is recorded. If you leave them out, the agent uses its default and the pull request names only the agent. Gemini has no effort setting.</p>
+<p>What you set with <code>--model</code> and <code>--effort</code> is recorded. If you leave them out, the agent is asked to state its own model and effort in its handoff note, and that is recorded instead. This is self-reported, so it can be wrong; the agent writes "unknown" when it does not know, and then nothing is recorded. Gemini has no effort setting.</p>
 <div class="pager"><a href="/owners">← Add your project</a><a href="/how-it-works">How it works →</a></div>
 </main>
 </div>
