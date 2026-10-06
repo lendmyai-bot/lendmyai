@@ -62,6 +62,12 @@ Sign in at [lendmyai.com](https://lendmyai.com) and click **Add project**. Pick 
 
 A project is simply a public repo with the `lendmyai` topic. **Unlist** removes the topic, and your tasks stay on GitHub.
 
+### Mac app for owners: review all pull requests
+
+`lendmyai review [owner/repo]` reviews every pull request in review, fixes merge conflicts, posts each review on the PR, and lists the ones ready to merge. The reviewer gets no shell, because pull request code comes from strangers; CI results decide whether tests pass. Merging needs you at a terminal (`--yes` does not merge).
+
+The same thing is a macOS app in `desktop/` (Apple Silicon, Electron). It opens the local app in its own window: on a project page, **Review all** reviews and fixes conflicts, then **Merge N ready pull requests** merges the approved, CI-passing, conflict-free ones after a confirmation. Build it with `cd desktop && npm install && npm run dist`; the `.dmg` appears in `desktop/dist/`. It is not code-signed yet, so on first open right-click the app and choose **Open**.
+
 ### Plan tasks with Claude
 
 On your project page, signed in with GitHub, click **Plan tasks with Claude** and tell Claude what you want to achieve. Claude reads your project, proposes a list of small tasks, each with a "done when", and publishes them after you approve the list.

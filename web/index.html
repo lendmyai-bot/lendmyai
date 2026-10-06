@@ -304,6 +304,7 @@ async function render() {
     if (view === "project" && parts[3] === "new") return await viewNewTask(parts[1], parts[2]);
     if (view === "project") return await viewProject(parts[1], parts[2]);
     if (view === "run") return await viewRun(parts[1]);
+    if (view === "review") return await viewReview(parts[1]);
     if (view === "publish") return await viewPublish();
     if (view === "runs") return await viewRuns();
     return await viewProjects();
@@ -464,6 +465,7 @@ async function viewProject(o, r) {
       </div>
       ${p.canManage ? `<div class="row">
         ${p.listed ? `<button id="unlist" class="danger">Unlist</button>` : `<button id="list">List project</button>`}
+        ${me.mode === "local" && inReview ? `<button id="reviewAll" class="primary">Review all (${inReview})</button>` : ""}
         <a href="${projectHref(full)}/new"><button>Add one task</button></a>
       </div>` : ""}
     </div>
@@ -485,6 +487,11 @@ async function viewProject(o, r) {
     if (confirm("Remove this project from lendmyai? Its tasks stay on GitHub but won't be listed.")) toggle(e.target, `/api/projects/${o}/${r}/unlist`, "Project unlisted");
   });
   document.getElementById("list")?.addEventListener("click", (e) => toggle(e.target, `/api/repos/${o}/${r}/init`, "Project listed"));
+  document.getElementById("reviewAll")?.addEventListener("click", async (e) => {
+    e.target.disabled = true;
+    try { const { reviewId } = await call("POST", `/api/projects/${o}/${r}/review`, {}); location.hash = `#/review/${reviewId}`; }
+    catch (err) { toast(err.message); e.target.disabled = false; }
+  });
   loadPlanButton(full);
 }
 
@@ -699,6 +706,58 @@ function timeline(events, o, r) {
     const note = ev.kind === "handoff" ? ev.text.split("\n").slice(1).join("\n").trim() : ev.kind === "failed" ? ev.text.split("\n").slice(1).join("\n").trim() : "";
     return `<li>${label(ev)}<div class="when">${ago(ev.at)}</div>${note ? `<div class="note md">${md(note)}</div>` : ""}</li>`;
   }).join("")}</ul>`;
+}
+
+// ---------- review all ----------
+async function viewReview(id) {
+  main.innerHTML = loading("review");
+  let job = await call("GET", `/api/reviews/${id}?since=0`);
+  main.innerHTML = `
+    <a class="back" href="${projectHref(job.repo)}">← ${esc(job.repo)}</a>
+    <div class="row" style="justify-content:space-between;flex-wrap:wrap;margin-bottom:12px">
+      <h1>Review all pull requests</h1><span id="status"></span>
+    </div>
+    <div id="outcomes"></div>
+    <pre class="term" id="term" style="height:300px"></pre>`;
+  const term = document.getElementById("term");
+  const box = document.getElementById("outcomes");
+  const append = (lines) => {
+    const stick = term.scrollTop + term.clientHeight >= term.scrollHeight - 30;
+    for (const l of lines) { const span = document.createElement("span"); span.textContent = l + "\n"; term.appendChild(span); }
+    if (stick) term.scrollTop = term.scrollHeight;
+  };
+  const show = (j) => {
+    document.getElementById("status").innerHTML = j.status === "running" ? `<span class="spinner"></span> Reviewing…` : j.status === "error" ? `<span class="pill danger">error</span>` : `<span class="pill ok">done</span>`;
+    const ready = j.outcomes.filter((o) => o.ready);
+    box.innerHTML = (j.error ? errorBox(j.error) : "") + (j.outcomes.length ? `
+      <div class="panel" style="margin-bottom:16px"><table>
+        <tr><th>Pull request</th><th>Review</th><th>CI</th><th>Conflicts</th><th></th></tr>
+        ${j.outcomes.map((o) => `<tr>
+          <td><a href="${esc(o.url)}" target="_blank" rel="noopener">${esc(o.ref)}</a><div class="fine">${esc(o.title)}</div></td>
+          <td>${o.verdict === "APPROVE" ? `<span class="pill ok">looks good</span>` : o.verdict === "CHANGES" ? `<span class="pill warn">changes needed</span>` : `<span class="pill">no verdict</span>`}</td>
+          <td>${esc(o.ci)}</td><td>${esc(o.conflicts)}</td>
+          <td>${o.merged ? `<span class="pill ok">merged</span>` : o.ready ? `<span class="pill accent">ready</span>` : `<span class="fine">${esc(o.note ?? "")}</span>`}</td>
+        </tr>`).join("")}
+      </table></div>
+      ${ready.length ? `<button class="primary" id="merge">Merge ${ready.length} ready pull request${ready.length > 1 ? "s" : ""}</button> <span class="fine">Only pull requests that are approved, have passing CI and no conflicts.</span>` : ""}` : "");
+    document.getElementById("merge")?.addEventListener("click", async (e) => {
+      if (!confirm(`Merge ${ready.length} pull request(s)?\n\n${ready.map((o) => o.ref + "  " + o.title).join("\n")}`)) return;
+      e.target.disabled = true;
+      try { job = await call("POST", `/api/reviews/${id}/merge`, {}); toast("Merged"); show(job); }
+      catch (err) { toast(err.message); e.target.disabled = false; }
+    });
+  };
+  append(job.log);
+  show(job);
+  let seen = job.logLength;
+  pollTimer = setInterval(async () => {
+    if (!location.hash.startsWith(`#/review/${id}`)) return clearInterval(pollTimer);
+    try {
+      const j = await call("GET", `/api/reviews/${id}?since=${seen}`);
+      append(j.log); seen = j.logLength; job = j; show(j);
+      if (j.status !== "running") clearInterval(pollTimer);
+    } catch { clearInterval(pollTimer); }
+  }, 1500);
 }
 
 // ---------- run ----------

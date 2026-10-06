@@ -81,7 +81,7 @@ export function installedAgents(): string[] {
  * Resolves the agent to run. `custom` is a command template such as
  * "aider --message {prompt}"; without a {prompt} placeholder the prompt is appended.
  */
-export function resolveAgent(opts: { agent?: string; custom?: string; model?: string }): ResolvedAgent {
+export function resolveAgent(opts: { agent?: string; custom?: string; model?: string; shell?: boolean }): ResolvedAgent {
   const { model } = opts;
   if (opts.custom) {
     const parts = opts.custom.trim().split(/\s+/);
@@ -104,7 +104,7 @@ export function resolveAgent(opts: { agent?: string; custom?: string; model?: st
   }
   const extra = agent.modelArgs?.(model) ?? [];
   // Only for unattended runs: an interactive session asks the contributor instead.
-  const unattended = agent.shellArgs?.() ?? [];
+  const unattended = opts.shell === false ? [] : agent.shellArgs?.() ?? [];
   return {
     name: agent.name,
     model,
