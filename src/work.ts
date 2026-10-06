@@ -1,9 +1,9 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { resolveAgent, runAgent } from "./agents.js";
+import { resolveAgent, runAgent, type RunInfo } from "./agents.js";
 import { git, repoUrl } from "./git.js";
-import { branchFor, checkWorkable, claim, headRepo, postHandoff, release, submitPullRequest } from "./contribute.js";
+import { branchFor, describeRun, checkWorkable, claim, headRepo, postHandoff, release, submitPullRequest } from "./contribute.js";
 import { me } from "./github.js";
 import { CLAIM_HOURS, parseIssueRef } from "./protocol.js";
 import { loadTask, maintainerNotes, type Task } from "./tasks.js";
@@ -16,6 +16,8 @@ import { ask, confirm, describeState } from "./ui.js";
 export interface WorkOptions {
   agent?: string;
   agentCmd?: string;
+  model?: string;
+  effort?: string;
   headless?: boolean;
   yes?: boolean;
 }
@@ -49,7 +51,7 @@ export async function work(ref: string, opts: WorkOptions): Promise<void> {
   console.log(`\n${label}: ${task.title}\n${task.url}\nState: ${describeState(task.state)}\n`);
   await checkWorkable(task, login);
 
-  const agent = resolveAgent({ agent: opts.agent, custom: opts.agentCmd });
+  const agent = resolveAgent({ agent: opts.agent, custom: opts.agentCmd, model: opts.model, effort: opts.effort });
   console.log("----- task text (this is what your agent will read) -----");
   console.log(task.body.trim() || "(empty)");
   console.log("---------------------------------------------------------");
@@ -72,7 +74,7 @@ export async function work(ref: string, opts: WorkOptions): Promise<void> {
   const key = opts.yes ? fallback[0] : await ask(`\n${options}\nChoice [${fallback[0]}]: `, fallback[0]);
   const choice = (["pr", "checkpoint", "keep", "release"] as Choice[]).find((c) => c[0] === key[0]) ?? fallback;
 
-  const result = await complete(task, ws, login, agent.name, choice, r);
+  const result = await complete(task, ws, login, agent.name, choice, r, agent);
   console.log(`✓ ${result.message}${result.url ? `: ${result.url}` : ""}`);
 }
 
@@ -176,7 +178,7 @@ export function defaultChoice(r: Review): Choice {
 
 /** Finishes a run: opens the pull request, pushes a checkpoint, keeps the claim, or releases it. */
 export async function complete(
-  task: Task, ws: Workspace, login: string, agent: string, choice: Choice, r: Review,
+  task: Task, ws: Workspace, login: string, agent: string, choice: Choice, r: Review, info: RunInfo = {},
 ): Promise<{ message: string; url?: string }> {
   if (choice === "release") {
     await release(task, login, "gave up");
@@ -188,17 +190,17 @@ export async function complete(
 
   if (git(["status", "--porcelain"], ws.dir, { quiet: true })) {
     git(["add", "-A"], ws.dir, { quiet: true });
-    git(["commit", "-q", "-m", `${task.title} (#${task.number})`, "-m", `Agent: ${agent} via lendmyai`], ws.dir, { quiet: true });
+    git(["commit", "-q", "-m", `${task.title} (#${task.number})`, "-m", `Agent: ${describeRun(agent, info)} via lendmyai`], ws.dir, { quiet: true });
   }
   const ownFork = ws.head !== `${task.owner}/${task.repo}`;
   // Branches in the contributor's own fork belong to this task, so force is safe there.
   git(["push", "-q", ...(ownFork ? ["--force"] : []), repoUrl(ws.head), `HEAD:refs/heads/${ws.branch}`], ws.dir, { quiet: true });
 
   if (choice === "checkpoint") {
-    await postHandoff(task, login, agent, ws.head, ws.branch, r.note);
+    await postHandoff(task, login, agent, ws.head, ws.branch, r.note, info);
     return { message: "Checkpoint pushed and task handed off", url: `https://github.com/${ws.head}/tree/${ws.branch}` };
   }
 
-  const pr = await submitPullRequest(task, ws.head, ws.branch, login, agent, r.note);
+  const pr = await submitPullRequest(task, ws.head, ws.branch, login, agent, r.note, info);
   return { message: "Pull request opened", url: pr.html_url };
 }

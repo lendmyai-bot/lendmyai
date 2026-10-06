@@ -1,10 +1,17 @@
 import { GitHubError, api, deleteComment, getComments, postComment } from "./github.js";
 import { BOT_LOGIN, CLAIM_HOURS, TASK_LABEL, marker } from "./protocol.js";
+import type { RunInfo } from "./agents.js";
 import { maintainerNotes, stateOf, type Task } from "./tasks.js";
 
 // Contribution steps shared by the CLI, the local app and the website. They
 // only call the GitHub API, so they run in Node and in Cloudflare Workers.
 // Local git work lives in work.ts; this file never touches the filesystem.
+
+/** "claude · model opus · effort high": how a run is named in PRs and comments. */
+export const describeRun = (agent: string, info: RunInfo = {}) =>
+  [agent, info.model && `model ${info.model}`, info.effort && `effort ${info.effort}`].filter(Boolean).join(" · ");
+
+const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9._-]+/g, "-").slice(0, 40);
 
 export const branchFor = (task: Task) => `lendmyai/issue-${task.number}`;
 
@@ -80,12 +87,12 @@ export async function release(task: Task, whoArg: WhoArg, reason: string): Promi
 }
 
 export async function postHandoff(
-  task: Task, whoArg: WhoArg, agent: string, head: string, branch: string, note: string,
+  task: Task, whoArg: WhoArg, agent: string, head: string, branch: string, note: string, info: RunInfo = {},
 ): Promise<void> {
   const who = norm(whoArg);
   await postComment(
     task.owner, task.repo, task.number,
-    `🤖 ${mention(who)} checkpointed this task (agent: ${agent}). Work so far is on \`${head}:${branch}\`; the next contributor continues from there.\n\n${note}\n${marker("handoff", { repo: head, branch, ...actingFor(who) })}`,
+    `🤖 ${mention(who)} checkpointed this task (agent: ${describeRun(agent, info)}). Work so far is on \`${head}:${branch}\`; the next contributor continues from there.\n\n${note}\n${marker("handoff", { repo: head, branch, ...actingFor(who) })}`,
   );
 }
 
@@ -222,7 +229,7 @@ export async function findPushedWork(task: Task, head: string, since: string): P
 
 /** Opens (or reuses) the pull request and marks the task as in review. */
 export async function submitPullRequest(
-  task: Task, head: string, branch: string, whoArg: WhoArg, agent: string, note: string,
+  task: Task, head: string, branch: string, whoArg: WhoArg, agent: string, note: string, info: RunInfo = {},
 ): Promise<{ number: number; html_url: string }> {
   const who = norm(whoArg);
   const headOwner = head.split("/")[0];
@@ -233,7 +240,7 @@ export async function submitPullRequest(
       title: task.title,
       head: `${headOwner}:${branch}`,
       base: task.defaultBranch,
-      body: `Closes #${task.number}\n\n${note}\n\n---\nAgent: **${agent}** · contributed by ${mention(who)} via [lendmyai](https://lendmyai.com)`,
+      body: `Closes #${task.number}\n\n${note}\n\n---\nAgent: **${describeRun(agent, info)}** · contributed by ${mention(who)} via [lendmyai](https://lendmyai.com)`,
       ...(ownFork ? { maintainer_can_modify: true } : {}),
     });
   } catch (e) {
@@ -243,6 +250,17 @@ export async function submitPullRequest(
     if (!existing.length) throw e;
     pr = existing[0];
   }
-  await postComment(task.owner, task.repo, task.number, `🤖 ${mention(who)} opened #${pr.number} for this task (agent: ${agent}).\n${marker("done", { pr: pr.number, ...actingFor(who) })}`);
+  await tagPullRequest(task, pr.number, agent, info);
+  await postComment(task.owner, task.repo, task.number, `🤖 ${mention(who)} opened #${pr.number} for this task (agent: ${describeRun(agent, info)}).\n${marker("done", { pr: pr.number, ...actingFor(who) })}`);
   return pr;
+}
+
+/** Labels the pull request with the agent, model and effort. Best effort: only people with triage access can add labels. */
+async function tagPullRequest(task: Task, pr: number, agent: string, info: RunInfo): Promise<void> {
+  const labels = [`agent:${slug(agent)}`, info.model && `model:${slug(info.model)}`, info.effort && `effort:${slug(info.effort)}`].filter(Boolean);
+  try {
+    await api("POST", `/repos/${upstreamOf(task)}/issues/${pr}/labels`, { labels });
+  } catch (e) {
+    if (!(e instanceof GitHubError)) throw e;
+  }
 }

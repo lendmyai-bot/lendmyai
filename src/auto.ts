@@ -15,6 +15,8 @@ import { begin, buildPrompt, complete, defaultChoice, review } from "./work.js";
 export interface AutoOptions {
   agent?: string;
   agentCmd?: string;
+  model?: string;
+  effort?: string;
   yes?: boolean;
   parallel?: number;
   max?: number;
@@ -41,7 +43,7 @@ export async function auto(repoFilter: string | undefined, opts: AutoOptions): P
   for (const t of tasks) for (const w of t.warnings) console.warn(`⚠  ${t.owner}/${t.repo}#${t.number}: ${w}`);
   if (opts.dryRun) return;
 
-  const agent = resolveAgent({ agent: opts.agent, custom: opts.agentCmd });
+  const agent = resolveAgent({ agent: opts.agent, custom: opts.agentCmd, model: opts.model, effort: opts.effort });
   if (!(await confirm(`\nClaim these and run ${agent.name} unattended (edits only, nothing is pushed until each run finishes)?`, opts.yes))) return;
 
   mkdirSync(LOG_DIR, { recursive: true });
@@ -101,7 +103,7 @@ async function runOne(task: Task, login: string, agent: ResolvedAgent, active: S
     const r = review(task, ws);
     // Unattended: finished work becomes a PR, partial work a checkpoint, and an empty run frees the task.
     const choice = r.hasWork ? defaultChoice(r) : "release";
-    const done = await complete(task, ws, login, agent.name, choice, r);
+    const done = await complete(task, ws, login, agent.name, choice, r, agent);
     log(`${done.message}${done.url ? `: ${done.url}` : ""}${code ? ` (agent exit code ${code})` : ""}`);
     return { ref, result: done.url ? `${done.message}: ${done.url}` : done.message };
   } catch (e) {
