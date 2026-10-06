@@ -201,18 +201,21 @@ export function defaultChoice(r: Review): Choice {
 
 /**
  * Finishes an unattended run without asking anyone: the agent's own verdict decides.
- * FAILED marks the task failed with its explanation, no changes releases the task with
- * the reason, finished work becomes a pull request, partial work a checkpoint.
+ * FAILED, or no changes with an explanation, marks the task failed with that explanation;
+ * no changes and no note releases it; finished work becomes a pull request, partial work a checkpoint.
  */
 export async function finishAutomatically(
   task: Task, ws: Workspace, login: string, agent: string, r: Review, info: RunInfo = {},
 ): Promise<{ message: string; url?: string }> {
   if (r.status === "FAILED") return complete(task, ws, login, agent, "failed", r, info);
   if (!r.hasWork) {
-    // Nothing to push: free the task and say why, so the owner and the contributor both see the agent's reason.
     const why = r.note.replace(/\s+/g, " ").replace(/@/g, "@\u200b").slice(0, 400);
+    // The agent explained why nothing changed (already done, not a code change, ...): park the task as failed with that
+    // explanation, so it leaves the available list and the next agent or owner can read why.
+    if (r.status !== "unknown") return complete(task, ws, login, agent, "failed", { ...r, note: r.note }, info);
+    // No note at all means the agent crashed or was stopped: give the task back for another try.
     await release(task, login, `the agent made no changes: ${why}`);
-    return { message: `No changes made, task released. Agent said: ${why.slice(0, 160)}` };
+    return { message: `No changes and no explanation, task released.` };
   }
   return complete(task, ws, login, agent, defaultChoice(r), r, info);
 }
@@ -225,7 +228,7 @@ export async function complete(
   info = { model: info.model ?? r.model };
   if (choice === "failed") {
     await postFailed(task, login, agent, r.note, info);
-    return { message: "Marked as failed, with the agent's explanation" };
+    return { message: `Nothing to merge. Marked failed with the agent's explanation: ${r.note.replace(/\s+/g, " ").slice(0, 160)}` };
   }
   if (choice === "release") {
     await release(task, login, "gave up");
