@@ -7,6 +7,8 @@ import { me } from "./github.js";
 import { loadTask, type Task } from "./tasks.js";
 import { checkWorkable } from "./contribute.js";
 import { pickTasks, startTasks, type AutoRun, type Outcome as AutoOutcome } from "./auto.js";
+import { planProject } from "./plan.js";
+import { createTask, type NewTask } from "./projects.js";
 import { readSettings, writeSettings } from "./settings.js";
 import { findPrs, mergePr, reviewPrs, type Outcome } from "./review.js";
 import { attachImages, begin, buildPrompt, complete, defaultChoice, finishAutomatically, review, type Choice, type Review, type Workspace } from "./work.js";
@@ -53,6 +55,17 @@ interface AutoJob {
   run?: AutoRun;
 }
 
+interface PlanJob {
+  id: string;
+  repo: string;
+  status: "running" | "ready" | "publishing" | "done" | "error";
+  log: string[];
+  tasks: NewTask[];
+  created: { number: number; url: string }[];
+  error?: string;
+}
+
+const plans = new Map<string, PlanJob>();
 const autos = new Map<string, AutoJob>();
 const reviews = new Map<string, ReviewJob>();
 const jobs = new Map<string, Job>();
@@ -118,6 +131,46 @@ const localRoutes: Route[] = [
 
   route("GET", "/api/settings", async () => readSettings()),
   route("POST", "/api/settings", async (_p, body) => writeSettings({ ponytail: body?.ponytail })),
+
+  // Owners: the AI on this computer proposes small tasks for a goal; the owner posts the ones they tick.
+  route("POST", "/api/projects/:owner/:repo/plan", async ([o, r], body) => {
+    const repo = `${o}/${r}`;
+    const goal = String(body?.goal ?? "").trim();
+    if (!goal) throw new HttpError(400, "Say what you want to achieve first.");
+    if ([...plans.values()].some((j) => j.repo === repo && j.status === "running")) throw new HttpError(409, "A plan is already being made for this project.");
+    const agent = resolveAgent({ agent: body?.agent || undefined, shell: false });
+    const job: PlanJob = { id: String(++jobSeq), repo, status: "running", log: [], tasks: [], created: [] };
+    plans.set(job.id, job);
+    planProject(repo, goal, agent, (line) => job.log.push(line))
+      .then((tasks) => { job.tasks = tasks; job.status = "ready"; })
+      .catch((e) => { job.error = e instanceof Error ? e.message : String(e); job.status = "error"; });
+    return { planId: job.id };
+  }),
+
+  route("GET", "/api/plans/:id", async ([id]) => {
+    const job = plans.get(id);
+    if (!job) throw new HttpError(404, "Plan not found.");
+    return job;
+  }),
+
+  route("POST", "/api/plans/:id/publish", async ([id], body) => {
+    const job = plans.get(id);
+    if (!job) throw new HttpError(404, "Plan not found.");
+    if (job.status !== "ready") throw new HttpError(400, "This plan isn't ready to post.");
+    const picked: number[] = Array.isArray(body?.indexes) ? body.indexes.filter((i: unknown) => Number.isInteger(i)) : job.tasks.map((_, i) => i);
+    job.status = "publishing";
+    const made = new Set<number>();
+    try {
+      for (const i of picked) if (job.tasks[i]) { job.created.push(await createTask(job.repo, job.tasks[i])); made.add(i); }
+      job.status = "done";
+    } catch (e) {
+      // Keep what is left so the owner can try again without posting duplicates.
+      job.tasks = job.tasks.filter((_, i) => !made.has(i));
+      job.status = "ready";
+      throw e;
+    }
+    return job;
+  }),
 
   // Contributors: find open tasks and work on a few at once, unattended (same as `lendmyai auto`).
   route("POST", "/api/auto", async (_p, body) => {

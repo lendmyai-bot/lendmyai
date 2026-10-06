@@ -21,7 +21,7 @@ interface Env {
 }
 
 /** Seconds that pages for signed-out visitors are cached, to stay within GitHub's rate limits. */
-const PUBLIC_CACHE_SECONDS = 60;
+const PUBLIC_CACHE_SECONDS = 15;
 
 const STATE_COOKIE = "lmai_oauth_state";
 const RETURN_COOKIE = "lmai_return";
@@ -42,14 +42,22 @@ export default {
     if (url.hostname.startsWith("docs.")) {
       const assetUrl = new URL(url);
       assetUrl.pathname = "/docs" + url.pathname;
-      return env.ASSETS.fetch(new Request(assetUrl, req));
+      return noStaleHtml(await env.ASSETS.fetch(new Request(assetUrl, req)));
     }
     if (isConnectorPath(url.pathname)) return connector(req, url, env);
     if (url.pathname.startsWith("/auth/")) return auth(req, url, env);
     if (url.pathname.startsWith("/api/")) return apiRequest(req, url, env);
-    return env.ASSETS.fetch(req);
+    return noStaleHtml(await env.ASSETS.fetch(req));
   },
 };
+
+/** Pages are always revalidated, so a new version or a new task shows up on the next load. */
+function noStaleHtml(res: Response): Response {
+  if (!res.headers.get("Content-Type")?.includes("text/html")) return res;
+  const out = new Response(res.body, res);
+  out.headers.set("Cache-Control", "no-cache, must-revalidate");
+  return out;
+}
 
 async function apiRequest(req: Request, url: URL, env: Env): Promise<Response> {
   try {

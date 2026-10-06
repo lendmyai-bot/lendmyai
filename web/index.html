@@ -177,13 +177,20 @@
   .lm-cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
   .lm-cta a { text-decoration: none; }
   button.big { padding: 12px 22px; font-size: 16px; border-radius: 10px; }
-  .lm-diagram { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; align-items: stretch; gap: 10px; margin: 36px auto 0; text-align: center; }
-  .lm-node { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px 12px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 4px; align-items: center; }
-  .lm-node b { font-size: 16px; }
-  .lm-node > span:last-child { color: var(--muted); font-size: 13px; line-height: 1.4; }
-  .lm-node-main { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
   .lm-ico { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 12px; background: var(--accent-soft); color: var(--accent); margin-bottom: 4px; }
-  .lm-arrow { align-self: center; color: var(--muted); font-size: 22px; }
+  .lm-stat { display: flex; flex-direction: column; align-items: center; margin: 34px 0 0; }
+  .lm-stat-num { font-size: clamp(56px, 11vw, 96px); font-weight: 800; line-height: 1; letter-spacing: -.03em; font-variant-numeric: tabular-nums; background: linear-gradient(90deg, var(--accent), #d36bff); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .lm-stat-label { color: var(--muted); font-size: 17px; margin-top: 6px; }
+  .lm-stepno { display: block; margin: 10px 0 0; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--accent); }
+  .lm-step .lm-ico { margin-bottom: 0; }
+  .lm-app { display: grid; grid-template-columns: 1.1fr .9fr; gap: 28px; align-items: center; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 32px; box-shadow: var(--shadow); }
+  .lm-app h2 { margin: 10px 0 8px; font-size: clamp(22px, 3.4vw, 30px); letter-spacing: -.01em; }
+  .lm-app a { text-decoration: none; }
+  .lm-win { background: var(--term-bg); border-radius: 14px; padding: 12px 14px 16px; box-shadow: 0 10px 30px rgb(0 0 0 / .18); }
+  .lm-win .dots { display: flex; gap: 6px; margin-bottom: 12px; }
+  .lm-win .dots i { width: 10px; height: 10px; border-radius: 50%; background: #3a3a44; display: block; }
+  .lm-win .row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px; background: rgb(255 255 255 / .05); margin-bottom: 7px; color: var(--term-text); font-size: 13px; }
+  .lm-win .row .pill { flex: none; }
   .lm-section { max-width: 960px; margin: 72px auto 0; }
   .lm-h2 { font-size: clamp(24px, 4vw, 32px); letter-spacing: -.01em; text-align: center; margin: 0 0 6px; }
   .lm-sub { color: var(--muted); text-align: center; margin: 0 0 28px; font-size: 16px; }
@@ -220,6 +227,20 @@
   .lm-final { max-width: 960px; margin: 72px auto 24px; text-align: center; padding: 44px 20px; border-radius: 20px; background: linear-gradient(135deg, var(--accent-soft), var(--surface-2)); border: 1px solid var(--border); }
   .lm-final h2 { margin: 0 0 6px; font-size: clamp(24px, 4vw, 32px); }
   .lm-final p { color: var(--muted); margin: 0 0 20px; }
+  .plan-local { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; border-color: var(--accent); }
+  .plan-local > div:first-child span { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .plan-form { display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap; }
+  .plan-form textarea { flex: 1 1 320px; }
+  .plan-item { display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; border-top: 1px solid var(--border); cursor: pointer; }
+  .plan-item input { width: auto; margin-top: 4px; }
+  .lm-startbox { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+  .lm-opts { font-size: 13px; color: var(--muted); }
+  .lm-opts summary { cursor: pointer; list-style: none; padding: 2px 4px; }
+  .lm-opts summary::-webkit-details-marker { display: none; }
+  .lm-opts summary::before { content: "⚙ "; }
+  .lm-opts[open] summary { color: var(--text); }
+  .lm-opts label { display: flex; gap: 8px; align-items: flex-start; margin-top: 6px; max-width: 320px; text-align: left; cursor: pointer; }
+  .lm-opts input { width: auto; margin-top: 3px; }
   .lm-try { max-width: 720px; }
   .lm-task { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 8px; box-shadow: var(--shadow); }
   .lm-task-main { display: flex; flex-direction: column; min-width: 0; color: var(--text); }
@@ -230,9 +251,8 @@
   @media (max-width: 760px) {
     .lm-task { flex-direction: column; align-items: stretch; }
     .lm-task button { width: 100%; }
-    .lm-diagram { grid-template-columns: 1fr; }
-    .lm-arrow { transform: rotate(90deg); }
-    .lm-steps, .lm-two, .lm-safe { grid-template-columns: 1fr; }
+        .lm-steps, .lm-two, .lm-safe, .lm-app { grid-template-columns: 1fr; }
+    .lm-app { padding: 22px; }
     .lm-section { margin-top: 56px; }
   }
   .how { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
@@ -291,6 +311,7 @@ function md(text) {
 
 async function call(method, path, body) {
   const res = await fetch(path, {
+    cache: "no-store",
     method,
     headers: method === "POST" ? { "Content-Type": "application/json" } : {},
     body: method === "POST" ? JSON.stringify(body ?? {}) : undefined,
@@ -399,6 +420,15 @@ async function render() {
 }
 window.addEventListener("hashchange", render);
 
+// Coming back to the tab after a while: reload the lists so new tasks and versions show up without a manual refresh.
+let hiddenAt = 0;
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) { hiddenAt = Date.now(); return; }
+  const view = location.hash.replace(/^#\/?/, "").split("/")[0] || "home";
+  const idle = !main.querySelector("textarea:not(:placeholder-shown), input[type=text]:not(:placeholder-shown), .term");
+  if (Date.now() - hiddenAt > 30000 && ["home", "projects", "project"].includes(view) && idle) render();
+});
+
 const projectHref = (fullName) => `#/project/${fullName}`;
 const repoOfRef = (ref) => ref.split("#")[0];
 
@@ -442,14 +472,13 @@ async function viewProjects() {
     <div class="row" id="projects-list" style="justify-content:space-between;flex-wrap:wrap;align-items:flex-end;margin-bottom:20px">
       <div><h1>Projects</h1><p class="sub" style="margin:0">Open-source projects looking for help. Pick one and lend your AI to its tasks.</p></div>
       <div class="row">
-        ${me.mode === "local" ? `<button id="autoAll" class="primary">Let my AI work on tasks</button>` : ""}
+        ${me.mode === "local" ? `<div class="lm-startbox"><button id="autoAll" class="primary">Let my AI work on tasks</button>${optionsHtml()}</div>` : ""}
         <a href="#/publish"><button${me.mode === "local" ? "" : ` class="primary"`}>Add your project</button></a>
       </div>
     </div>
-    ${me.mode === "local" ? `<label class="check" style="display:flex;gap:8px;align-items:flex-start;margin:-6px 0 16px"><input type="checkbox" id="ponytail" style="width:auto;margin-top:3px" disabled><span><b>Write smaller changes</b> <span class="fine" style="display:block">Fewer tokens, shorter diffs (<a href="https://ponytail.dev" target="_blank" rel="noopener">ponytail</a>).</span></span></label>` : ""}
     <div id="list">${loading("projects")}</div>`
   document.getElementById("autoAll")?.addEventListener("click", (e) => startAuto(e.target, {}));
-  if (me.mode === "local") mountSettings();
+  mountSettings();
   const list = document.getElementById("list");
   try {
     const projects = await call("GET", "/api/projects");
@@ -586,7 +615,11 @@ async function viewProject(o, r) {
     ${p.description ? `<p class="lead">${esc(p.description)}</p>` : ""}
     ${!p.listed ? `<div class="banner warn">This project is not listed, so it doesn't appear on the Projects page.</div>` : ""}
     ${p.canManage && me.mode === "hosted" ? `<div class="panel plan"><div><b>Plan tasks with Claude</b><span>Tell Claude what you want to achieve. It reads your project, suggests small tasks, and posts them once you approve.</span></div><div id="plan"><button class="primary" disabled><span class="spinner"></span> Plan tasks with Claude</button></div></div>` : ""}
-    ${me.mode === "local" && p.tasks.some((t) => t.state.kind === "available") ? `<div class="row" style="margin-bottom:16px"><button id="autoRepo" class="primary">Let my AI work on this project</button><span class="fine">Claims open tasks and works on them on this computer.</span></div>` : ""}
+    ${p.canManage && me.mode === "local" ? `<div class="panel plan-local" id="planLocal">
+      <div><b>Plan tasks with your AI</b><span>Say what you want to achieve. Your AI reads the project and suggests small tasks; you tick the ones to post.</span></div>
+      <div class="plan-form"><textarea id="planGoal" rows="2" maxlength="2000" placeholder="e.g. Make the signup flow work on phones"></textarea><button class="primary" id="planGo">Plan tasks</button></div>
+      <div id="planOut"></div></div>` : ""}
+    ${me.mode === "local" && p.tasks.some((t) => t.state.kind === "available") ? `<div class="row" style="margin-bottom:16px"><div class="lm-startbox"><button id="autoRepo" class="primary">Let my AI work on this project</button>${optionsHtml()}</div></div>` : ""}
     <div class="stats">
       <div><b>${p.tasks.length - inReview - failed}</b><span>open tasks</span></div>
       <div><b>${inReview}</b><span>in review</span></div>
@@ -606,12 +639,14 @@ async function viewProject(o, r) {
   });
   document.getElementById("list")?.addEventListener("click", (e) => toggle(e.target, `/api/repos/${o}/${r}/init`, "Project listed"));
   document.getElementById("autoRepo")?.addEventListener("click", (e) => startAuto(e.target, { repo: full }));
+  mountSettings();
   document.getElementById("reviewAll")?.addEventListener("click", async (e) => {
     e.target.disabled = true;
     try { const { reviewId } = await call("POST", `/api/projects/${o}/${r}/review`, {}); location.hash = `#/review/${reviewId}`; }
     catch (err) { toast(err.message); e.target.disabled = false; }
   });
   loadPlanButton(full);
+  mountPlanLocal(full);
   loadSuggestions(o, r, p.canManage);
 }
 
@@ -686,6 +721,57 @@ function suggestionCard(s, canManage) {
       <button class="danger" data-decline="${s.number}">Decline</button>
     </div>` : ""}
   </div>`;
+}
+
+// ---------- plan tasks with my AI (app) ----------
+function mountPlanLocal(full) {
+  const go = document.getElementById("planGo");
+  if (!go) return;
+  const out = document.getElementById("planOut");
+  const goal = document.getElementById("planGoal");
+  go.addEventListener("click", async () => {
+    if (!goal.value.trim()) return toast("Say what you want to achieve first.");
+    go.disabled = true;
+    out.innerHTML = `<p class="fine"><span class="spinner"></span>&nbsp; <span id="planStatus">Your AI is reading the project…</span></p>`;
+    try {
+      const { planId } = await call("POST", `/api/projects/${full}/plan`, { goal: goal.value });
+      pollTimer = setInterval(async () => {
+        try {
+          const j = await call("GET", `/api/plans/${planId}`);
+          const last = j.log[j.log.length - 1];
+          const st = document.getElementById("planStatus");
+          if (st && last) st.textContent = last.trim().slice(0, 100);
+          if (j.status === "running") return;
+          clearInterval(pollTimer);
+          if (j.status === "error") { out.innerHTML = errorBox(j.error); go.disabled = false; return; }
+          showPlan(planId, j);
+        } catch (e) { clearInterval(pollTimer); out.innerHTML = errorBox(e); go.disabled = false; }
+      }, 1500);
+    } catch (e) { out.innerHTML = errorBox(e); go.disabled = false; }
+  });
+
+  const showPlan = (planId, j) => {
+    out.innerHTML = `
+      <div class="plan-list">${j.tasks.map((t, i) => `
+        <label class="plan-item"><input type="checkbox" data-i="${i}" checked>
+          <span><b>${esc(t.title)}</b>${t.priority ? ` ${priorityPill(t.priority)}` : ""}
+            <span class="fine" style="display:block">${esc(t.goal)}</span>
+            <span class="fine" style="display:block"><b>Done when:</b> ${esc(t.doneWhen)}</span></span></label>`).join("")}</div>
+      <div class="row" style="margin-top:10px"><button class="primary" id="planPost"></button><span class="fine">Untick any you don't want.</span></div>`;
+    const post = document.getElementById("planPost");
+    const boxes = [...out.querySelectorAll("input[data-i]")];
+    const count = () => { const n = boxes.filter((b) => b.checked).length; post.textContent = `Post ${n} task${n === 1 ? "" : "s"}`; post.disabled = !n; };
+    boxes.forEach((b) => b.addEventListener("change", count));
+    count();
+    post.addEventListener("click", async () => {
+      post.disabled = true;
+      try {
+        const res = await call("POST", `/api/plans/${planId}/publish`, { indexes: boxes.filter((b) => b.checked).map((b) => Number(b.dataset.i)) });
+        toast(`Posted ${res.created.length} task${res.created.length === 1 ? "" : "s"}`);
+        render();
+      } catch (e) { toast(e.message); post.disabled = false; }
+    });
+  };
 }
 
 // ---------- task columns ----------
@@ -792,7 +878,8 @@ async function viewTask(o, r, n) {
             ? `<div class="field" style="margin:0"><label for="agent">AI</label><select id="agent">${me.agents.map((a) => `<option>${esc(a)}</option>`).join("")}</select></div>`
             : `<input type="hidden" id="agent" value="${esc(me.agents[0])}">`}
           <button class="primary big" id="run" style="width:100%">${mine ? "Continue" : "Let my AI do this task"}</button>
-          <p class="fine" style="text-align:center;margin:0">Works on this computer. The result goes to the project owner automatically.</p>`
+          <p class="fine" style="text-align:center;margin:0">Works on this computer. The result goes to the project owner automatically.</p>
+          ${optionsHtml()}`
         : `<div class="banner warn">No AI found on this computer. Install Claude Code, Codex or Gemini CLI.</div>`}
         <details class="advanced"><summary>Run in a terminal instead</summary>
           <div class="cmd" style="margin-top:8px"><code>${esc(command)}</code><button id="copy">Copy</button></div>
@@ -861,6 +948,7 @@ async function viewTask(o, r, n) {
   document.getElementById("addImages")?.addEventListener("click", () => document.getElementById("noteFile").click());
   document.getElementById("noteFile")?.addEventListener("change", (e) => { addImageFiles(e.target.files); e.target.value = ""; });
   document.getElementById("attemptNote")?.addEventListener("paste", (e) => addImageFiles([...(e.clipboardData?.files ?? [])]));
+  mountSettings();
   document.getElementById("saveNote")?.addEventListener("click", async (e) => {
     const text = document.getElementById("attemptNote").value.trim();
     if (!text && !noteImgs.length) return toast("Write a short note first.");
@@ -952,17 +1040,29 @@ function timeline(events, o, r) {
 }
 
 // ---------- settings ----------
+/** A small, closed "Options" fold next to a start button, so it never gets in the way of the one click. */
+const optionsHtml = () => me.mode !== "local" ? "" : `
+  <details class="lm-opts"><summary>Options</summary>
+    <label><input type="checkbox" class="js-ponytail" disabled><span><b>Write smaller changes</b> <span class="fine">Fewer tokens, shorter diffs (<a href="https://ponytail.dev" target="_blank" rel="noopener">ponytail</a>)</span></span></label>
+  </details>`;
+
 async function mountSettings() {
-  const box = document.getElementById("ponytail");
-  if (!box) return;
+  const boxes = [...document.querySelectorAll(".js-ponytail")];
+  if (!boxes.length) return;
   try {
-    box.checked = (await call("GET", "/api/settings")).ponytail;
-    box.disabled = false;
-    box.addEventListener("change", async () => {
-      try { await call("POST", "/api/settings", { ponytail: box.checked }); toast(box.checked ? "Smaller changes: on" : "Smaller changes: off"); }
-      catch (e) { toast(e.message); box.checked = !box.checked; }
-    });
-  } catch { box.closest("label").hidden = true; }
+    const { ponytail } = await call("GET", "/api/settings");
+    for (const box of boxes) {
+      box.checked = ponytail;
+      box.disabled = false;
+      box.addEventListener("change", async () => {
+        try {
+          await call("POST", "/api/settings", { ponytail: box.checked });
+          boxes.forEach((b) => (b.checked = box.checked));
+          toast(box.checked ? "Smaller changes: on" : "Smaller changes: off");
+        } catch (e) { toast(e.message); box.checked = !box.checked; }
+      });
+    }
+  } catch { boxes.forEach((b) => b.closest(".lm-opts")?.remove()); }
 }
 
 // ---------- let my AI work on tasks ----------
@@ -1282,6 +1382,11 @@ document.addEventListener("click", (e) => {
 });
 
 function heroHtml(browseLink) {
+  const ICON = {
+    task: `<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>`,
+    ai: `<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z"/></svg>`,
+    review: `<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="9" r="2.5"/><path d="M6 8.5v7M18 11.5c0 4-5 3-10.5 5.5"/></svg>`,
+  };
   const browse = browseLink
     ? `<a href="#/projects"><button class="primary big">Browse projects</button></a>`
     : signInButton("Sign in with GitHub", "primary big");
@@ -1291,15 +1396,7 @@ function heroHtml(browseLink) {
       <h1>Your AI can help build<br><span class="lm-grad">open-source projects</span></h1>
       <p class="lm-lead">Pick a task, press one button, and your Claude does the work. The project owner checks the result before anything changes. No coding. No GitHub account.</p>
       <div class="lm-cta">${browse}<a href="#/publish"><button class="big">I have a project</button></a></div>
-      <p class="fine" id="solved-counter"><span class="spinner"></span></p>
-
-      <div class="lm-diagram" aria-label="How a task travels">
-        <div class="lm-node"><span class="lm-ico"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M9 8h6M9 12h6M9 16h3"/></svg></span><b>A task</b><span>An owner describes what they need</span></div>
-        <span class="lm-arrow" aria-hidden="true">→</span>
-        <div class="lm-node lm-node-main"><span class="lm-ico"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z"/></svg></span><b>Your AI</b><span>Claude does the work on your side</span></div>
-        <span class="lm-arrow" aria-hidden="true">→</span>
-        <div class="lm-node"><span class="lm-ico"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="9" r="2.5"/><path d="M6 8.5v7M18 11.5c0 4-5 3-10.5 5.5"/></svg></span><b>Owner reviews</b><span>They accept it or ask for changes</span></div>
-      </div>
+      <div class="lm-stat" id="solved-counter" hidden><span class="lm-stat-num" id="solved-num">0</span><span class="lm-stat-label" id="solved-label">tasks solved by AI</span></div>
     </section>
 
     <section class="lm-section lm-try" id="try" hidden>
@@ -1310,11 +1407,11 @@ function heroHtml(browseLink) {
 
     <section class="lm-section" id="how">
       <h2 class="lm-h2">How it works</h2>
-      <p class="lm-sub">Three steps. You only do the middle one.</p>
+      <p class="lm-sub">Three steps, and you only do the middle one.</p>
       <div class="lm-steps">
-        <div class="lm-step"><span class="lm-num">1</span><h3>Owners post tasks</h3><p>People who run a project on GitHub write small tasks with a clear "done when". Each one is something an AI can finish in one go.</p></div>
-        <div class="lm-step lm-step-you"><span class="lm-num">2</span><h3>You press one button</h3><p>Choose a task and click <b>Do this task with Claude</b>. Claude opens with everything already typed in. Press Send, then relax.</p></div>
-        <div class="lm-step"><span class="lm-num">3</span><h3>The owner decides</h3><p>Your work arrives as a suggested change with your name on it. The owner reads it and chooses what goes in.</p></div>
+        <div class="lm-step"><span class="lm-ico">${ICON.task}</span><span class="lm-stepno">Step 1</span><h3>Owners post tasks</h3><p>People who run a project on GitHub write small tasks with a clear "done when". Each one is something an AI can finish in one go.</p></div>
+        <div class="lm-step lm-step-you"><span class="lm-ico">${ICON.ai}</span><span class="lm-stepno">Step 2 · the only one for you</span><h3>You press one button</h3><p>Choose a task and click <b>Do this task with Claude</b>. Claude opens with everything already typed in. Press Send, then relax.</p></div>
+        <div class="lm-step"><span class="lm-ico">${ICON.review}</span><span class="lm-stepno">Step 3</span><h3>The owner decides</h3><p>Your work arrives as a suggested change with your name on it. The owner reads it and chooses what goes in.</p></div>
       </div>
     </section>
 
@@ -1342,6 +1439,29 @@ function heroHtml(browseLink) {
             <li>Nothing is merged unless you say so</li>
           </ul>
           <a href="#/publish"><button class="primary">Add your project</button></a>
+        </div>
+      </div>
+    </section>
+
+    <section class="lm-section" id="app">
+      <div class="lm-app">
+        <div>
+          <span class="lm-tag lm-tag-owner">Mac app · free</span>
+          <h2>Let your AI work in the background</h2>
+          <ul class="lm-list">
+            <li><b>One click, many tasks.</b> Your AI picks up several tasks at once while you do something else.</li>
+            <li><b>Owners: one click to review.</b> It reviews every pull request, fixes conflicts, and merges the good ones.</li>
+            <li><b>Nothing to set up.</b> It uses your own Claude and signs in to GitHub for you. No terminal.</li>
+            <li><b>You stay in charge.</b> Watch live progress and press Stop at any time.</li>
+          </ul>
+          <a href="https://github.com/tholtman1-del/lendmyai/releases/latest" target="_blank" rel="noopener"><button class="primary big">Download for Mac</button></a>
+          <p class="fine" style="margin-top:10px">Apple Silicon Macs. First time: right-click the app and choose <b>Open</b>. <a href="https://docs.lendmyai.com/app" target="_blank" rel="noopener">Install guide</a></p>
+        </div>
+        <div class="lm-win" aria-hidden="true">
+          <div class="dots"><i></i><i></i><i></i></div>
+          <div class="row"><span>Add a dark mode toggle</span><span class="pill ok">pull request opened</span></div>
+          <div class="row"><span>Fix typo on pricing page</span><span class="pill ok">pull request opened</span></div>
+          <div class="row"><span>Add a --version flag</span><span class="pill accent">working…</span></div>
         </div>
       </div>
     </section>
@@ -1374,14 +1494,24 @@ function heroHtml(browseLink) {
 
 /** Fills in the "X tasks solved" line on the homepage hero once the count is known. */
 async function loadSolvedCounter() {
-  const el = document.getElementById("solved-counter");
-  if (!el) return;
+  const box = document.getElementById("solved-counter");
+  if (!box) return;
   try {
-    const { completedTasks } = await call("GET", "/api/stats");
-    el.textContent = `${completedTasks.toLocaleString()} task${completedTasks === 1 ? "" : "s"} solved by lendmyai so far`;
-  } catch {
-    el.remove();
-  }
+    const { completedTasks: n } = await call("GET", "/api/stats");
+    if (!n) return;
+    document.getElementById("solved-label").textContent = n === 1 ? "task solved by AI so far" : "tasks solved by AI so far";
+    box.hidden = false;
+    const num = document.getElementById("solved-num");
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return void (num.textContent = n.toLocaleString());
+    // Count up from 0 with an ease-out, so the number feels earned.
+    const start = performance.now(), ms = 1400;
+    const tick = (now) => {
+      const t = Math.min((now - start) / ms, 1);
+      num.textContent = Math.round(n * (1 - Math.pow(1 - t, 3))).toLocaleString();
+      if (t < 1 && num.isConnected) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  } catch {}
 }
 
 function signInPanel(what) {
