@@ -70,7 +70,7 @@
   button.danger { color: var(--danger); }
   button:disabled { opacity: .5; cursor: not-allowed; }
 
-  .cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  .cols { display: grid; grid-template-columns: repeat(var(--n, 3), minmax(0, 1fr)); gap: 16px; }
   @media (max-width: 860px) { .cols { grid-template-columns: 1fr; } }
   .col { background: var(--surface-2); border-radius: var(--radius); padding: 12px; min-height: 120px; }
   .col-head { display: flex; justify-content: space-between; font-weight: 600; margin: 2px 4px 10px; }
@@ -283,6 +283,7 @@ const taskHref = (ref) => `#/task/${splitRef(ref).join("/")}`;
 
 function statePill(s) {
   if (s.kind === "available") return s.handoff ? `<span class="pill warn">resumable · ${esc(personName(s.handoff))}</span>` : `<span class="pill ok">available</span>`;
+  if (s.kind === "failed") return `<span class="pill danger">failed</span>`;
   if (s.kind === "claimed") return `<span class="pill accent">${esc(personName(s))} · ${esc(s.agent)} · ${until(s.expires)}</span>`;
   return `<span class="pill">PR #${esc(s.pr)} · ${esc(personName(s))}</span>`;
 }
@@ -450,6 +451,7 @@ async function viewProject(o, r) {
   main.innerHTML = `<a class="back" href="#/">← Projects</a>${loading("project")}`;
   const p = await call("GET", `/api/projects/${encodeURIComponent(o)}/${encodeURIComponent(r)}`);
   const inReview = p.tasks.filter((t) => t.state.kind === "in-review").length;
+  const failed = p.tasks.filter((t) => t.state.kind === "failed").length;
   main.innerHTML = `
     <a class="back" href="#/">← Projects</a>
     <div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px">
@@ -469,7 +471,7 @@ async function viewProject(o, r) {
     ${!p.listed ? `<div class="banner warn">This project is not listed, so it doesn't appear on the Projects page.</div>` : ""}
     ${p.canManage && me.mode === "hosted" ? `<div class="panel plan"><div><b>Plan tasks with Claude</b><span>Tell Claude what you want to achieve. It reads your project, suggests small tasks, and posts them once you approve.</span></div><div id="plan"><button class="primary" disabled><span class="spinner"></span> Plan tasks with Claude</button></div></div>` : ""}
     <div class="stats">
-      <div><b>${p.tasks.length - inReview}</b><span>open tasks</span></div>
+      <div><b>${p.tasks.length - inReview - failed}</b><span>open tasks</span></div>
       <div><b>${inReview}</b><span>in review</span></div>
       <div><b>${p.completedTasks}</b><span>completed</span></div>
     </div>
@@ -492,8 +494,10 @@ function taskColumns(tasks, emptyHint, showRepo = false) {
     ["Available", tasks.filter((t) => t.state.kind === "available"), "Nothing to pick up right now."],
     ["In progress", tasks.filter((t) => t.state.kind === "claimed"), "No AI is working on anything."],
     ["In review", tasks.filter((t) => t.state.kind === "in-review"), "No pull requests waiting."],
+    // Only shown when there is something: tasks an agent could not complete, with its explanation.
+    ...(tasks.some((t) => t.state.kind === "failed") ? [["Failed", tasks.filter((t) => t.state.kind === "failed"), ""]] : []),
   ];
-  return `<div class="cols">${groups.map(([name, list, empty]) => `
+  return `<div class="cols" style="--n:${groups.length}">${groups.map(([name, list, empty]) => `
     <section class="col">
       <div class="col-head"><span>${name}</span><span class="n">${list.length}</span></div>
       ${list.length ? list.map((t) => card(t, showRepo)).join("") : `<div class="empty">${empty}</div>`}
@@ -589,6 +593,9 @@ async function viewTask(o, r, n) {
         </div>
       </div>`;
   }
+  const failedBanner = s.failure
+    ? `<div class="banner danger"><b>${s.kind === "failed" ? "An agent could not complete this task" : "Earlier attempt failed"}</b> (${esc(personName(s.failure))}, ${ago(s.failure.at)})<div class="md" style="margin-top:6px">${md(s.failure.reason)}</div></div>`
+    : "";
   const canRelease = (s.kind === "claimed" || s.kind === "in-review") && (mine || t.canPush) && !t.jobId && !t.cloud;
 
   main.innerHTML = `
@@ -598,6 +605,7 @@ async function viewTask(o, r, n) {
         <div class="row" style="flex-wrap:wrap;margin-bottom:4px"><a href="${esc(t.url)}" target="_blank" rel="noopener" class="mono">${esc(t.ref)}</a>${statePill(s)}</div>
         <h1>${esc(t.title)}</h1>
         <div style="height:12px"></div>
+        ${failedBanner}
         ${t.warnings.map((w) => `<div class="banner warn">⚠ ${esc(w)}</div>`).join("")}
         <div class="panel"><h2>Task</h2><div class="md">${md(t.body)}</div></div>
         ${t.notes.length ? `<div class="panel"><h2>Maintainer comments</h2>${t.notes.map((nt) => `<div class="md" style="margin-bottom:10px">${md(nt)}</div>`).join("")}</div>` : ""}
@@ -684,10 +692,11 @@ function timeline(events, o, r) {
     claim: `<b>${esc(personName(ev))}</b> claimed with ${esc(ev.data.agent)}`,
     release: `<b>${esc(personName(ev))}</b> released`,
     handoff: `<b>${esc(personName(ev))}</b> checkpointed to <span class="mono">${esc(ev.data.repo)}:${esc(ev.data.branch)}</span>`,
+    failed: `<b>${esc(personName(ev))}</b>'s agent could not complete this task`,
     done: `<b>${esc(personName(ev))}</b> opened <a href="https://github.com/${esc(o)}/${esc(r)}/pull/${esc(ev.data.pr)}" target="_blank" rel="noopener">PR #${esc(ev.data.pr)}</a>`,
   })[ev.kind];
   return `<ul class="timeline">${[...events].reverse().map((ev) => {
-    const note = ev.kind === "handoff" ? ev.text.split("\n").slice(1).join("\n").trim() : "";
+    const note = ev.kind === "handoff" ? ev.text.split("\n").slice(1).join("\n").trim() : ev.kind === "failed" ? ev.text.split("\n").slice(1).join("\n").trim() : "";
     return `<li>${label(ev)}<div class="when">${ago(ev.at)}</div>${note ? `<div class="note md">${md(note)}</div>` : ""}</li>`;
   }).join("")}</ul>`;
 }

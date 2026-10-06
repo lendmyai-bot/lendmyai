@@ -144,3 +144,16 @@ test("parseIssueRef accepts short refs and URLs", () => {
   assert.deepEqual(parseIssueRef("https://github.com/acme/app/issues/12"), { owner: "acme", repo: "app", number: 12 });
   assert.throws(() => parseIssueRef("acme/app"));
 });
+
+test("a failed marker from the holder marks the task failed and keeps the reason", () => {
+  const failed = c("alice", "10:05", `Not a code change.\n${marker("failed", {})}`);
+  const s = computeState([claim("alice", "10:00"), failed], NOW);
+  assert.equal(s.kind, "failed");
+  assert.equal(s.failure?.reason, "Not a code change.");
+  // Someone else cannot mark it failed.
+  assert.equal(computeState([claim("alice", "10:00"), c("bob", "10:05", marker("failed", {}))], NOW).kind, "claimed");
+  // Anyone can retry; the earlier reason stays visible.
+  const retry = computeState([claim("alice", "10:00"), failed, claim("bob", "10:10")], NOW);
+  assert.equal(retry.kind === "claimed" && retry.user, "bob");
+  assert.equal(retry.failure?.user, "alice");
+});

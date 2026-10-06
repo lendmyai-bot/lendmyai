@@ -1,5 +1,5 @@
 import {
-  branchFor, checkWorkable, claim, findPushedWork, headRepo, postHandoff, prepareBranch, release, submitPullRequest, type Who,
+  branchFor, checkWorkable, claim, findPushedWork, headRepo, postFailed, postHandoff, prepareBranch, release, submitPullRequest, type Who,
 } from "./contribute.js";
 import { api, withToken } from "./github.js";
 import { createTask, listProject, managedRepos } from "./projects.js";
@@ -92,7 +92,11 @@ export const TOOLS = [
     description: "Stop working on the task. Any changes made so far are kept so the next person can continue.",
     inputSchema: {
       type: "object",
-      properties: { task: taskArg, notes: { type: "string", description: "What's done and what's left, for the next person." } },
+      properties: {
+        task: taskArg,
+        notes: { type: "string", description: "What's done and what's left, for the next person. If cannot_be_done is true, explain why." },
+        cannot_be_done: { type: "boolean", description: "True only if the task can't be completed as written (for example it isn't a code change). The task is then marked failed with your explanation." },
+      },
       required: ["task", "notes"],
     },
   },
@@ -313,6 +317,7 @@ const tools: Record<string, (args: any, ctx: Ctx) => Promise<string>> = {
       task.body.trim() || "(no description; infer the task from the title)",
       ...(notes.length ? ["", "## Comments from the project owner", ...notes] : []),
       ...(h ? ["", `## Earlier attempt by ${h.name ?? "@" + h.user} (already in the files; continue from it)`, h.note] : []),
+      ...(task.state.failure ? ["", "## An earlier agent could not complete this task (hints only; check whether it still applies)", task.state.failure.reason] : []),
       "",
       `## Project files (${files.length}${truncated ? "+, list shortened" : ""})`,
       files.slice(0, 300).join("\n"),
@@ -365,6 +370,10 @@ const tools: Record<string, (args: any, ctx: Ctx) => Promise<string>> = {
     const { task, head, since } = await myWork(args.task, ctx);
     const work = await findPushedWork(task, head, since);
     const notes = typeof args.notes === "string" ? args.notes.trim() : "";
+    if (args.cannot_be_done === true) {
+      await postFailed(task, ctx.who, AGENT, notes || "(no explanation)");
+      return "Marked as failed with your explanation, so the owner and the next contributor can see why.";
+    }
     if (work) {
       await postHandoff(task, ctx.who, AGENT, head, work.branch, notes || "(no notes)");
       return "Stopped. The changes so far are saved, so the next person can continue from them.";

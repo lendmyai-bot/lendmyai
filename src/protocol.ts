@@ -17,7 +17,7 @@ const DELEGATED_ID = /^lendmyai:[a-z0-9]{6,32}$/;
 
 const TRUSTED_ASSOCIATIONS = new Set(["OWNER", "MEMBER", "COLLABORATOR"]);
 
-export type MarkerKind = "claim" | "release" | "handoff" | "done";
+export type MarkerKind = "claim" | "release" | "handoff" | "done" | "failed";
 
 export interface ClaimData { expires: string; agent: string }
 export interface HandoffData { repo: string; branch: string }
@@ -31,18 +31,24 @@ export interface Comment {
   body: string;
 }
 
+/** Why an agent could not complete a task, kept so later contributors and agents can use it. */
+export interface Failure { user: string; name?: string; reason: string; at: string }
+
 export interface Handoff extends HandoffData { user: string; name?: string; note: string; at: string }
 
-export type TaskState =
+export type TaskState = (
   | { kind: "available"; handoff?: Handoff }
   | {
       kind: "claimed"; user: string; name?: string; expires: string; agent: string; commentId: number;
       /** When the claim was made, and the owner/repo the contributor pushes to (website claims only). */
       since: string; repo?: string; handoff?: Handoff;
     }
-  | { kind: "in-review"; user: string; name?: string; pr: number; handoff?: Handoff };
+  | { kind: "in-review"; user: string; name?: string; pr: number; handoff?: Handoff }
+  /** An agent concluded the task can't be done as written (for example it isn't a code change). Anyone can still retry it. */
+  | { kind: "failed"; user: string; name?: string; handoff?: Handoff }
+) & { failure?: Failure };
 
-const MARKER_RE = /<!--\s*lendmyai:(claim|release|handoff|done)\s+(\{.*?\})\s*-->/s;
+const MARKER_RE = /<!--\s*lendmyai:(claim|release|handoff|done|failed)\s+(\{.*?\})\s*-->/s;
 
 export function marker(kind: MarkerKind, data: object): string {
   return `<!-- lendmyai:${kind} ${JSON.stringify(data)} -->`;
@@ -87,6 +93,7 @@ export function computeState(
 ): TaskState {
   let state: TaskState = { kind: "available" };
   let handoff: Handoff | undefined;
+  let failure: Failure | undefined;
 
   const sorted = [...comments].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   for (const c of sorted) {
@@ -120,6 +127,12 @@ export function computeState(
           state = { kind: "available" };
         }
         break;
+      case "failed":
+        if (state.kind === "claimed" && holder === actor) {
+          failure = { user: actor, name, reason: stripMarker(c.body), at: c.createdAt };
+          state = { kind: "failed", user: actor, name };
+        }
+        break;
       case "done":
         if (state.kind === "claimed" && holder === actor && Number.isInteger(m.data.pr)) {
           state = { kind: "in-review", user: actor, name, pr: m.data.pr };
@@ -130,7 +143,7 @@ export function computeState(
 
   if (state.kind === "claimed" && new Date(state.expires) <= now) state = { kind: "available" };
   if (state.kind === "in-review" && prState(state.pr) === "closed") state = { kind: "available" };
-  return { ...state, handoff };
+  return { ...state, handoff, failure };
 }
 
 /** The issue fields checkApproval needs, as returned by GitHub's GraphQL API. */

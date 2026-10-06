@@ -40,6 +40,10 @@ The first time, this signs you in to GitHub. It then opens the app in your brows
 
 You can hold one task at a time. Claims expire after 24 hours.
 
+### Failed tasks
+
+If the agent decides a task can't be completed as written (for example it isn't a code change), it ends its handoff note with `STATUS: FAILED` and an explanation. The task is then marked failed: it appears in a **Failed** column, the explanation is posted on the issue (plus an `agent-failed` label when the account can label), and `auto` skips it. Anyone can retry it, and the next agent is shown the earlier explanation. The Claude connector's `give_up` tool does the same with `cannot_be_done`.
+
 ### Model tag
 
 `lendmyai work` and `lendmyai auto` take `--model`. It is passed to the agent and recorded in the PR description, commit message and task comments, and as PR labels (`agent:claude`, `model:opus`) when your account can label the repo. Without the flags, the agent is asked to report its own model in its handoff note, and that is used (self-reported, so treat it as a hint).

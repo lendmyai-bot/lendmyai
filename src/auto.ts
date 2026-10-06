@@ -72,7 +72,7 @@ async function pickTasks(repoFilter: string | undefined, login: string, max: num
   const out: Task[] = [];
   for (const s of await listTasks(repoFilter, 50)) {
     if (out.length >= max) break;
-    if (s.state.kind === "in-review" || (s.state.kind === "claimed" && s.state.user !== login)) continue;
+    if (s.state.kind === "in-review" || s.state.kind === "failed" || (s.state.kind === "claimed" && s.state.user !== login)) continue;
     const [fullName, number] = s.ref.split("#");
     const [owner, repo] = fullName.split("/");
     const task = await loadTask(owner, repo, Number(number));
@@ -104,6 +104,11 @@ async function runOne(task: Task, login: string, agent: ResolvedAgent, active: S
     const code = await run.done.finally(() => { active.delete(handle); file.end(); });
 
     const r = review(task, ws);
+    if (r.status === "FAILED") {
+      const done = await complete(task, ws, login, agent.name, "failed", r, agent);
+      log(`failed: ${r.note.replace(/\s+/g, " ").slice(0, 160)}`);
+      return { ref, result: `Marked failed. Agent said: ${r.note.replace(/\s+/g, " ").slice(0, 160)}` };
+    }
     if (!r.hasWork) {
       // Nothing to push: free the task and say why, so the owner and the contributor both see the agent's reason.
       const why = r.note.replace(/\s+/g, " ").replace(/@/g, "@\u200b").slice(0, 400);
