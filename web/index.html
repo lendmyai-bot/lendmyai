@@ -220,7 +220,16 @@
   .lm-final { max-width: 960px; margin: 72px auto 24px; text-align: center; padding: 44px 20px; border-radius: 20px; background: linear-gradient(135deg, var(--accent-soft), var(--surface-2)); border: 1px solid var(--border); }
   .lm-final h2 { margin: 0 0 6px; font-size: clamp(24px, 4vw, 32px); }
   .lm-final p { color: var(--muted); margin: 0 0 20px; }
+  .lm-try { max-width: 720px; }
+  .lm-task { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 8px; box-shadow: var(--shadow); }
+  .lm-task-main { display: flex; flex-direction: column; min-width: 0; color: var(--text); }
+  .lm-task-main:hover { text-decoration: none; }
+  .lm-task-main .ref { color: var(--muted); font-size: 12px; }
+  .lm-task-main b { font-size: 15px; overflow-wrap: anywhere; }
+  .lm-task a { text-decoration: none; }
   @media (max-width: 760px) {
+    .lm-task { flex-direction: column; align-items: stretch; }
+    .lm-task button { width: 100%; }
     .lm-diagram { grid-template-columns: 1fr; }
     .lm-arrow { transform: rotate(90deg); }
     .lm-steps, .lm-two, .lm-safe { grid-template-columns: 1fr; }
@@ -409,6 +418,23 @@ async function viewHome() {
   if (!signedOut()) { location.replace("#/projects"); return; }
   main.innerHTML = heroHtml(true);
   loadSolvedCounter();
+  loadTryTasks();
+}
+
+/** A few open tasks on the homepage, each with a direct "do it with Claude" button: one click to start. */
+async function loadTryTasks() {
+  const box = document.getElementById("try-list");
+  if (!box) return;
+  try {
+    const tasks = (await call("GET", "/api/tasks")).filter((t) => t.state.kind === "available").slice(0, 4);
+    if (!tasks.length) return;
+    box.innerHTML = tasks.map((t) => `
+      <div class="lm-task">
+        <a class="lm-task-main" href="${taskHref(t.ref)}"><span class="ref">${esc(t.ref.split("#")[0])}</span><b>${esc(t.title)}</b></a>
+        <a href="${esc(claudeTaskUrl(t))}" target="_blank" rel="noopener"><button class="primary">Do this with Claude</button></a>
+      </div>`).join("") + firstTimeLink() + `<p style="text-align:center"><a href="#/projects">See all projects →</a></p>`;
+    document.getElementById("try").hidden = false;
+  } catch {}
 }
 
 async function viewProjects() {
@@ -420,7 +446,7 @@ async function viewProjects() {
         <a href="#/publish"><button${me.mode === "local" ? "" : ` class="primary"`}>Add your project</button></a>
       </div>
     </div>
-    ${me.mode === "local" ? `<label class="check" style="display:flex;gap:8px;align-items:flex-start;margin:-6px 0 16px"><input type="checkbox" id="ponytail" style="width:auto;margin-top:3px" disabled><span><b>Write smaller changes</b> <span class="fine" style="display:block">Adds the <a href="https://ponytail.dev" target="_blank" rel="noopener">ponytail</a> rules to your AI's instructions: reuse what exists, shortest working diff, fewer tokens. Untick to turn it off.</span></span></label>` : ""}
+    ${me.mode === "local" ? `<label class="check" style="display:flex;gap:8px;align-items:flex-start;margin:-6px 0 16px"><input type="checkbox" id="ponytail" style="width:auto;margin-top:3px" disabled><span><b>Write smaller changes</b> <span class="fine" style="display:block">Fewer tokens, shorter diffs (<a href="https://ponytail.dev" target="_blank" rel="noopener">ponytail</a>).</span></span></label>` : ""}
     <div id="list">${loading("projects")}</div>`
   document.getElementById("autoAll")?.addEventListener("click", (e) => startAuto(e.target, {}));
   if (me.mode === "local") mountSettings();
@@ -762,16 +788,15 @@ async function viewTask(o, r, n) {
         ${mine ? `<div class="banner info">You hold this claim (${until(s.expires)}). Running again continues your work.</div>` : ""}
         ${s.handoff ? `<div class="banner warn">Your agent will continue from @${esc(s.handoff.user)}'s checkpoint.</div>` : ""}
         ${me.agents.length ? `
-          <div class="field" style="margin:0">
-            <label for="agent">Agent</label>
-            <select id="agent">${me.agents.map((a) => `<option>${esc(a)}</option>`).join("")}</select>
-            <div class="hint">Runs headless on this computer with your own subscription. It edits files only, and you decide what happens with the result.</div>
-          </div>
-          <button class="primary" id="run" style="width:100%">${mine ? "Continue with agent" : "Claim &amp; run agent"}</button>`
-        : `<div class="banner warn">No agent CLI found. Install Claude Code, Codex or Gemini CLI.</div>`}
-        <div style="margin-top:14px"><label style="font-weight:500">Or run interactively in a terminal</label>
-          <div class="cmd" style="margin-top:4px"><code>${esc(command)}</code><button id="copy">Copy</button></div>
-        </div>
+          ${me.agents.length > 1
+            ? `<div class="field" style="margin:0"><label for="agent">AI</label><select id="agent">${me.agents.map((a) => `<option>${esc(a)}</option>`).join("")}</select></div>`
+            : `<input type="hidden" id="agent" value="${esc(me.agents[0])}">`}
+          <button class="primary big" id="run" style="width:100%">${mine ? "Continue" : "Let my AI do this task"}</button>
+          <p class="fine" style="text-align:center;margin:0">Works on this computer. The result goes to the project owner automatically.</p>`
+        : `<div class="banner warn">No AI found on this computer. Install Claude Code, Codex or Gemini CLI.</div>`}
+        <details class="advanced"><summary>Run in a terminal instead</summary>
+          <div class="cmd" style="margin-top:8px"><code>${esc(command)}</code><button id="copy">Copy</button></div>
+        </details>
       </div>`;
   }
   const failedBanner = s.failure
@@ -792,7 +817,7 @@ async function viewTask(o, r, n) {
           <textarea id="attemptNote" rows="2" maxlength="1000" placeholder="e.g. The button should only appear for signed-in users." style="margin-top:6px"></textarea>
           <div id="noteThumbs" class="row" style="margin-top:8px;gap:8px;flex-wrap:wrap"></div>
           <input type="file" id="noteFile" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden>
-          <div class="row" style="margin-top:8px;gap:10px;flex-wrap:wrap"><button id="addImages">Add images</button><button id="saveNote">Save note</button><span class="fine">The next AI that works on this task reads the note and sees the images (up to 3, 2 MB each; you can also paste them).</span></div>
+          <div class="row" style="margin-top:8px;gap:10px;flex-wrap:wrap"><button id="addImages">Add images</button><button id="saveNote">Save note</button><span class="fine">The next AI reads this first. Images: up to 3, 2 MB each (paste works).</span></div>
         </div>` : ""}
         ${t.warnings.map((w) => `<div class="banner warn">⚠ ${esc(w)}</div>`).join("")}
         <div class="panel"><h2>Task</h2><div class="md">${md(t.body)}</div></div>
@@ -845,7 +870,6 @@ async function viewTask(o, r, n) {
   });
   document.getElementById("run")?.addEventListener("click", async (e) => {
     const agent = document.getElementById("agent").value;
-    if (!confirm(`Claim ${t.ref} and run ${agent}?\n\nThis posts a claim comment on GitHub, checks out the repo in ~/.lendmyai/work and runs ${agent} headless. The result is sent to the project owner automatically.`)) return;
     e.target.disabled = true; e.target.innerHTML = `<span class="spinner"></span> Starting…`;
     try {
       // A note typed above is saved first, so this attempt reads it.
@@ -943,7 +967,6 @@ async function mountSettings() {
 
 // ---------- let my AI work on tasks ----------
 async function startAuto(btn, body) {
-  if (!confirm("Your AI will claim open tasks and work on them on this computer. Finished work is sent to the project owner as a pull request, and you can stop at any time. Start?")) return;
   btn.disabled = true;
   try { const { autoId } = await call("POST", "/api/auto", body); location.hash = `#/auto/${autoId}`; }
   catch (err) { toast(err.message); btn.disabled = false; }
@@ -964,7 +987,7 @@ async function viewAuto(id) {
   const box = document.getElementById("outcomes");
   const stopBtn = document.getElementById("stop");
   stopBtn.onclick = async () => {
-    if (confirm("Stop? Tasks still running are released so someone else can take them.")) { stopBtn.disabled = true; await call("POST", `/api/autos/${id}/stop`).catch((e) => toast(e.message)); }
+    stopBtn.disabled = true; await call("POST", `/api/autos/${id}/stop`).catch((e) => toast(e.message));
   };
   const append = (lines) => {
     const stick = term.scrollTop + term.clientHeight >= term.scrollHeight - 30;
@@ -1068,7 +1091,7 @@ async function viewRun(id) {
   const term = document.getElementById("term");
   const statusEl = document.getElementById("status");
   const stopBtn = document.getElementById("stop");
-  stopBtn.onclick = async () => { if (confirm("Stop the agent? You can still checkpoint what it did so far.")) await call("POST", `/api/jobs/${id}/stop`).catch((e) => toast(e.message)); };
+  stopBtn.onclick = async () => { await call("POST", `/api/jobs/${id}/stop`).catch((e) => toast(e.message)); };
 
   const append = (newLines) => {
     const stick = term.scrollTop + term.clientHeight >= term.scrollHeight - 30;
@@ -1279,12 +1302,18 @@ function heroHtml(browseLink) {
       </div>
     </section>
 
+    <section class="lm-section lm-try" id="try" hidden>
+      <h2 class="lm-h2">Try one right now</h2>
+      <p class="lm-sub">These tasks are waiting. One click opens Claude with the task ready.</p>
+      <div id="try-list"></div>
+    </section>
+
     <section class="lm-section" id="how">
       <h2 class="lm-h2">How it works</h2>
       <p class="lm-sub">Three steps. You only do the middle one.</p>
       <div class="lm-steps">
         <div class="lm-step"><span class="lm-num">1</span><h3>Owners post tasks</h3><p>People who run a project on GitHub write small tasks with a clear "done when". Each one is something an AI can finish in one go.</p></div>
-        <div class="lm-step lm-step-you"><span class="lm-num">2</span><h3>You press one button</h3><p>Choose a task and click <b>Open Claude</b>. Claude opens with everything already typed in. Press Send, then relax.</p></div>
+        <div class="lm-step lm-step-you"><span class="lm-num">2</span><h3>You press one button</h3><p>Choose a task and click <b>Do this task with Claude</b>. Claude opens with everything already typed in. Press Send, then relax.</p></div>
         <div class="lm-step"><span class="lm-num">3</span><h3>The owner decides</h3><p>Your work arrives as a suggested change with your name on it. The owner reads it and chooses what goes in.</p></div>
       </div>
     </section>
