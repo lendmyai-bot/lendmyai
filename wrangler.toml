@@ -5,11 +5,16 @@ compatibility_date = "2025-09-01"
 compatibility_flags = ["nodejs_compat"]
 
 # Serve the site on the custom domain (domain lives in the same Cloudflare account).
-routes = [{ pattern = "lendmyai.com", custom_domain = true }]
+routes = [
+  { pattern = "lendmyai.com", custom_domain = true },
+  { pattern = "docs.lendmyai.com", custom_domain = true },
+]
 
 [assets]
 directory = "web"
 binding = "ASSETS"
+# The worker must see "/" too, so docs.lendmyai.com serves web/docs instead of web/index.html.
+run_worker_first = true
 
 # Secrets (never commit them):
 #   npx wrangler secret put GITHUB_CLIENT_ID

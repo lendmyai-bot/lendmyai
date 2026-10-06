@@ -172,6 +172,8 @@
   .how p { color: var(--muted); margin: 0; }
   .num { width: 28px; height: 28px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font-weight: 700; margin-bottom: 10px; }
   .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 8px; max-width: calc(100% - 32px); z-index: 10; }
+  .site-footer { max-width: 1100px; margin: 40px auto 0; padding: 24px 16px 32px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; text-align: center; display: grid; gap: 6px; }
+  .site-footer .legal { font-size: 12px; max-width: 640px; margin: 6px auto 0; }
 </style>
 </head>
 <body>
@@ -187,6 +189,11 @@
   </div>
 </header>
 <main id="main"></main>
+<footer class="site-footer">
+  <div>Made by Tibor Holtman</div>
+  <div><a href="https://docs.lendmyai.com">Docs</a> · <a href="https://github.com/tholtman1-del/lendmyai/blob/main/LICENSE.md">License</a></div>
+  <div class="legal">© 2026 Tibor Holtman. All rights reserved. The source is view-only: copying, modifying, redistributing or hosting it is not permitted without permission.</div>
+</footer>
 
 <script>
 const main = document.getElementById("main");

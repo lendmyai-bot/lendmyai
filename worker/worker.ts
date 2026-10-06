@@ -38,6 +38,12 @@ const hostedRoutes: Route[] = [
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
+    // docs.lendmyai.com serves the static pages in web/docs/ from its own root.
+    if (url.hostname.startsWith("docs.")) {
+      const assetUrl = new URL(url);
+      assetUrl.pathname = "/docs" + url.pathname;
+      return env.ASSETS.fetch(new Request(assetUrl, req));
+    }
     if (isConnectorPath(url.pathname)) return connector(req, url, env);
     if (url.pathname.startsWith("/auth/")) return auth(req, url, env);
     if (url.pathname.startsWith("/api/")) return apiRequest(req, url, env);
