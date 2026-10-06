@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { BOT_LOGIN, TASK_LABEL, checkApproval, computeState, marker, parseIssueRef, type ApprovalIssue, type Comment } from "./protocol.js";
+import { BOT_LOGIN, TASK_LABEL, checkApproval, computeState, marker, parseIssueRef, parseMarker, type ApprovalIssue, type Comment } from "./protocol.js";
 
 const NOW = new Date("2026-10-05T12:00:00Z");
 const LATER = "2026-10-06T12:00:00Z";
@@ -82,6 +82,22 @@ test("done blocks claims while PR is open, reopens when PR is closed unmerged", 
 test("only the claim holder can mark done", () => {
   const s = computeState([claim("alice", "10:00"), c("bob", "10:05", marker("done", { pr: 9 }))], NOW);
   assert.equal(s.kind, "claimed");
+});
+
+test("old done and handoff markers that still carry tokens (or other unknown fields) keep working", () => {
+  const raw = (kind: string, json: string) => `<!-- lendmyai:${kind} ${json} -->`;
+  assert.deepEqual(parseMarker(raw("done", '{"pr":7,"tokens":123456}'))?.data, { pr: 7, tokens: 123456 });
+
+  const done = computeState(
+    [claim("alice", "10:00"), c("alice", "10:05", raw("done", '{"pr":7,"tokens":123456,"future":"x"}'))],
+    NOW,
+  );
+  assert.equal(done.kind === "in-review" && done.pr, 7);
+
+  const handoff = c("alice", "10:01", `notes\n${raw("handoff", '{"repo":"alice/x","branch":"b","tokens":400}')}`);
+  const s = computeState([claim("alice", "10:00"), handoff], NOW);
+  assert.equal(s.kind, "available");
+  assert.deepEqual(s.handoff && { repo: s.handoff.repo, branch: s.handoff.branch, note: s.handoff.note }, { repo: "alice/x", branch: "b", note: "notes" });
 });
 
 function issue(o: { author?: string; association?: string; events?: [actor: string, at: string][]; labeled?: boolean; editedAt?: string; editor?: string }): ApprovalIssue {

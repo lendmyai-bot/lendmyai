@@ -24,8 +24,6 @@ interface Job {
   result?: { message: string; url?: string };
   error?: string;
   startedAt: string;
-  /** Total tokens the agent reported using; recorded with the result for the Rank list. */
-  tokens?: number;
   kill?: () => void;
   ctx?: { task: Task; ws: Workspace; login: string };
 }
@@ -65,14 +63,11 @@ const localRoutes: Route[] = [
       log(`Workspace: ${ws.dir} (branch ${ws.branch})`);
       log(`Starting ${agent.name} (headless)…`);
       job.status = "running";
-      const run = streamAgent(agent.streamCommand(buildPrompt(task)), ws.dir, log, (tokens) => {
-        job.tokens = tokens;
-      });
+      const run = streamAgent(agent.streamCommand(buildPrompt(task)), ws.dir, log);
       job.kill = run.kill;
       const code = await run.done;
       job.kill = undefined;
       log(`${agent.name} exited with code ${code}.`);
-      if (job.tokens) log(`Tokens used: ${job.tokens.toLocaleString("en-US")} (recorded with your result for the Rank list).`);
       job.review = review(task, ws);
       job.defaultChoice = defaultChoice(job.review);
       job.status = "review";
@@ -105,7 +100,7 @@ const localRoutes: Route[] = [
     job.status = "completing";
     try {
       const { task, ws, login } = job.ctx;
-      job.result = await complete(task, ws, login, job.agent, choice, job.review, job.tokens);
+      job.result = await complete(task, ws, login, job.agent, choice, job.review);
       job.status = "done";
     } catch (e) {
       job.status = "review";

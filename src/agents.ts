@@ -9,8 +9,6 @@ export interface StreamRun {
   cmd: [string, string[]];
   /** Turns a raw output line into a log line (or null to hide it). */
   format: (line: string) => string | null;
-  /** Total tokens the run used, if this raw output line reports it. */
-  tokens?: (line: string) => number | undefined;
 }
 
 export interface Agent {
@@ -21,7 +19,7 @@ export interface Agent {
   /** Unattended run, restricted to file edits / sandboxed where the agent supports it. */
   headless(prompt: string): string[];
   /** Optional headless variant with machine-readable progress, plus a formatter for each output line. */
-  stream?: { args(prompt: string): string[]; format(line: string): string | null; tokens?(line: string): number | undefined };
+  stream?: { args(prompt: string): string[]; format(line: string): string | null };
 }
 
 export const AGENTS: Agent[] = [
@@ -33,7 +31,6 @@ export const AGENTS: Agent[] = [
     stream: {
       args: (p) => ["-p", p, "--permission-mode", "acceptEdits", "--output-format", "stream-json", "--verbose"],
       format: formatClaudeEvent,
-      tokens: claudeTokens,
     },
   },
   {
@@ -93,7 +90,7 @@ export function resolveAgent(opts: { agent?: string; custom?: string }): Resolve
     command: (prompt, headless) => [agent.bin, headless ? agent.headless(prompt) : agent.interactive(prompt)],
     streamCommand: (prompt) =>
       agent.stream
-        ? { cmd: [agent.bin, agent.stream.args(prompt)], format: agent.stream.format, tokens: agent.stream.tokens }
+        ? { cmd: [agent.bin, agent.stream.args(prompt)], format: agent.stream.format }
         : { cmd: [agent.bin, agent.headless(prompt)], format: (l) => l },
   };
 }
@@ -104,24 +101,17 @@ export function runAgent(cmd: [string, string[]], cwd: string): number {
   return res.status ?? 1;
 }
 
-/**
- * Runs an agent without a terminal, passing each formatted output line to
- * `onLine`. `onTokens` receives the run's total token usage when the agent
- * reports it.
- */
+/** Runs an agent without a terminal, passing each formatted output line to `onLine`. */
 export function streamAgent(
   run: StreamRun,
   cwd: string,
   onLine: (line: string) => void,
-  onTokens?: (tokens: number) => void,
 ): { done: Promise<number>; kill(): void } {
   const child = spawn(run.cmd[0], run.cmd[1], { cwd, stdio: ["ignore", "pipe", "pipe"] });
-  const pipe = (stream: NodeJS.ReadableStream, format: (l: string) => string | null, tokens?: (l: string) => number | undefined) => {
+  const pipe = (stream: NodeJS.ReadableStream, format: (l: string) => string | null) => {
     let buf = "";
     const handle = (l: string) => {
       if (!l.trim()) return;
-      const used = tokens?.(l);
-      if (used !== undefined) onTokens?.(used);
       const out = format(l);
       if (out) onLine(out);
     };
@@ -134,7 +124,7 @@ export function streamAgent(
     });
     stream.on("end", () => handle(buf));
   };
-  pipe(child.stdout!, run.format, run.tokens);
+  pipe(child.stdout!, run.format);
   pipe(child.stderr!, (l) => l);
   const done = new Promise<number>((resolve, reject) => {
     child.on("error", reject);
@@ -169,21 +159,4 @@ function formatClaudeEvent(line: string): string | null {
     return `■ Agent finished (${ev.num_turns ?? "?"} turns${cost})${ev.is_error ? `: ${ev.result}` : ""}`;
   }
   return null;
-}
-
-/**
- * Total tokens of a Claude run: the final "result" event sums the usage of the
- * whole session (input, output, and cache writes and reads).
- */
-function claudeTokens(line: string): number | undefined {
-  let ev: any;
-  try {
-    ev = JSON.parse(line);
-  } catch {
-    return undefined;
-  }
-  if (ev?.type !== "result" || !ev.usage) return undefined;
-  const total = ["input_tokens", "output_tokens", "cache_creation_input_tokens", "cache_read_input_tokens"]
-    .reduce((sum, key) => sum + (Number.isFinite(ev.usage[key]) ? ev.usage[key] : 0), 0);
-  return total > 0 ? Math.round(total) : undefined;
 }
