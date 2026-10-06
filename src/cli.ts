@@ -67,7 +67,8 @@ async function main(): Promise<void> {
   switch (cmd) {
     case undefined:
       if (!findToken()) await login();
-      return serve(port, { open: true });
+      serve(port, { open: true });
+      return;
     case "login":
       return login();
     case "logout":
@@ -109,7 +110,8 @@ async function main(): Promise<void> {
       if (!arg) throw new Error("Usage: lendmyai release <owner/repo#123>");
       return releaseCmd(arg);
     case "serve":
-      return serve(port);
+      serve(port);
+      return;
     case "init":
       if (!arg?.includes("/")) throw new Error("Usage: lendmyai init <owner/repo>");
       return init(arg);

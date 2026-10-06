@@ -14,6 +14,8 @@ import { confirmStrict as confirm } from "./ui.js";
 // here never gets a shell: it reads and edits files, and CI results (not code run
 // on this computer) say whether the tests pass.
 
+export type Emit = (ref: string, line: string) => void;
+
 export interface ReviewOptions {
   agent?: string;
   agentCmd?: string;
@@ -28,7 +30,7 @@ const MAX_DIFF_CHARS = 60_000;
 type Ci = "passing" | "failing" | "pending" | "none";
 type Verdict = "APPROVE" | "CHANGES" | "unknown";
 
-interface Pr {
+export interface Pr {
   repo: string;
   number: number;
   taskNumber: number;
@@ -36,9 +38,13 @@ interface Pr {
   taskBody: string;
 }
 
-interface Outcome {
+export interface Outcome {
   ref: string;
   url: string;
+  title: string;
+  /** The commit that was reviewed; merging is refused if the branch has moved since. */
+  sha?: string;
+  merged?: boolean;
   verdict: Verdict;
   ci: Ci;
   conflicts: "none" | "resolved" | "unresolved";
@@ -58,30 +64,56 @@ export async function reviewAll(repoFilter: string | undefined, opts: ReviewOpti
   const agent = resolveAgent({ agent: opts.agent, custom: opts.agentCmd, model: opts.model, shell: false });
   if (!(await confirm(`\nReview these with ${agent.name}, fix merge conflicts, and post each review on GitHub?`, opts.yes))) return;
 
-  mkdirSync(LOG_DIR, { recursive: true });
-  const parallel = Math.min(Math.max(Math.floor(opts.parallel ?? 2), 1), 5);
-  const outcomes: Outcome[] = [];
-  const queue = [...prs];
-  const runner = async () => {
-    for (let pr = queue.shift(); pr; pr = queue.shift()) outcomes.push(await reviewOne(pr, agent));
-  };
-  await Promise.all(Array.from({ length: Math.min(parallel, prs.length) }, runner));
+  const outcomes = await reviewPrs(prs, agent, (ref, line) => console.log(`[${ref}] ${line}`), opts.parallel);
+
+  // Merging always needs a person at a terminal: --yes does not cover it.
+  const ready = outcomes.filter((o) => o.ready);
+  if (ready.length && process.stdin.isTTY && (await confirm(`\nMerge ${ready.length} ready pull request(s) (${ready.map((o) => o.ref).join(", ")})?`))) {
+    for (const o of ready) await mergePr(o);
+  }
 
   console.log("\nSummary");
   for (const o of outcomes) {
-    const status = o.ready ? "READY TO MERGE" : o.note ?? "needs attention";
+    const status = o.merged ? "MERGED" : o.ready ? "READY TO MERGE" : o.note ?? "needs attention";
     console.log(`  ${o.ref.padEnd(36)} review: ${o.verdict.padEnd(8)} CI: ${o.ci.padEnd(8)} conflicts: ${o.conflicts.padEnd(10)} ${status}`);
   }
-  const ready = outcomes.filter((o) => o.ready);
-  if (ready.length) {
+  const waiting = outcomes.filter((o) => o.ready && !o.merged);
+  if (waiting.length) {
     console.log(`\nReady to merge (open each and click Merge):`);
-    for (const o of ready) console.log(`  ${o.url}`);
+    for (const o of waiting) console.log(`  ${o.url}`);
   }
   console.log(`\nLogs: ${LOG_DIR}`);
 }
 
+/** Reviews the pull requests a few at a time. Shared by the CLI and the app. */
+export async function reviewPrs(prs: Pr[], agent: ResolvedAgent, emit: Emit, parallel = 2): Promise<Outcome[]> {
+  mkdirSync(LOG_DIR, { recursive: true });
+  const outcomes: Outcome[] = [];
+  const queue = [...prs];
+  const runner = async () => {
+    for (let pr = queue.shift(); pr; pr = queue.shift()) outcomes.push(await reviewOne(pr, agent, emit));
+  };
+  await Promise.all(Array.from({ length: Math.min(Math.min(Math.max(Math.floor(parallel), 1), 5), prs.length) }, runner));
+  return outcomes;
+}
+
+/** Squash-merges a ready pull request, only if its branch is still at the commit that was reviewed. */
+export async function mergePr(o: Outcome): Promise<void> {
+  if (!o.ready || o.merged) return;
+  const [repo, n] = o.ref.split("#");
+  try {
+    await api("PUT", `/repos/${repo}/pulls/${n}/merge`, { merge_method: "squash", ...(o.sha ? { sha: o.sha } : {}) });
+    o.merged = true;
+    o.ready = false;
+    console.log(`✓ Merged ${o.ref}`);
+  } catch (e) {
+    o.note = `merge failed: ${(e instanceof Error ? e.message : String(e)).split("\n")[0]}`;
+    console.log(`✗ ${o.ref}: ${o.note}`);
+  }
+}
+
 /** Tasks in review, in repos where this user can merge. */
-async function findPrs(repoFilter: string | undefined): Promise<Pr[]> {
+export async function findPrs(repoFilter: string | undefined): Promise<Pr[]> {
   const out: Pr[] = [];
   for (const s of await listTasks(repoFilter, 50)) {
     if (s.state.kind !== "in-review") continue;
@@ -96,11 +128,11 @@ async function findPrs(repoFilter: string | undefined): Promise<Pr[]> {
   return out;
 }
 
-async function reviewOne(pr: Pr, agent: ResolvedAgent): Promise<Outcome> {
+async function reviewOne(pr: Pr, agent: ResolvedAgent, emit: Emit): Promise<Outcome> {
   const ref = `${pr.repo}#${pr.number}`;
   const url = `https://github.com/${pr.repo}/pull/${pr.number}`;
-  const log = (line: string) => console.log(`[${ref}] ${line}`);
-  const out: Outcome = { ref, url, verdict: "unknown", ci: "none", conflicts: "none", ready: false };
+  const log = (line: string) => emit(ref, line);
+  const out: Outcome = { ref, url, title: pr.taskTitle, verdict: "unknown", ci: "none", conflicts: "none", ready: false };
   try {
     let info = await loadPr(pr);
     const headRepo: string | undefined = info.head.repo?.full_name;
@@ -124,6 +156,7 @@ async function reviewOne(pr: Pr, agent: ResolvedAgent): Promise<Outcome> {
     const review = await runReview(dir, pr, info, agent, log);
     out.verdict = review.verdict;
     out.ci = await ciStatus(pr.repo, info.head.sha);
+    out.sha = info.head.sha;
 
     await postComment(
       pr.repo.split("/")[0], pr.repo.split("/")[1], pr.number,

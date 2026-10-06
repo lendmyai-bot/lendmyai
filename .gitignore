@@ -2,3 +2,6 @@ node_modules/
 dist/
 .dev.vars
 .wrangler/
+desktop/node_modules/
+desktop/bundle/
+desktop/dist/

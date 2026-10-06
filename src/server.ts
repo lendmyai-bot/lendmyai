@@ -1,11 +1,12 @@
 import { readFileSync } from "node:fs";
-import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { installedAgents, resolveAgent, streamAgent } from "./agents.js";
 import { HttpError, errorResponse, match, refOf, route, sharedRoutes, type Route } from "./api.js";
 import { openBrowser } from "./auth.js";
 import { me } from "./github.js";
 import { loadTask, type Task } from "./tasks.js";
 import { checkWorkable } from "./contribute.js";
+import { findPrs, mergePr, reviewPrs, type Outcome } from "./review.js";
 import { begin, buildPrompt, complete, defaultChoice, review, type Choice, type Review, type Workspace } from "./work.js";
 
 // Local app: the shared website API plus agent runs on this computer. It binds
@@ -28,6 +29,17 @@ interface Job {
   ctx?: { task: Task; ws: Workspace; login: string };
 }
 
+interface ReviewJob {
+  id: string;
+  repo: string;
+  status: "running" | "done" | "error";
+  log: string[];
+  outcomes: Outcome[];
+  error?: string;
+  startedAt: string;
+}
+
+const reviews = new Map<string, ReviewJob>();
 const jobs = new Map<string, Job>();
 let jobSeq = 0;
 
@@ -79,6 +91,45 @@ const localRoutes: Route[] = [
     return { jobId: job.id };
   }),
 
+  // Maintainers: review every pull request in review for one project and fix merge conflicts.
+  route("POST", "/api/projects/:owner/:repo/review", async ([o, r], body) => {
+    const repo = `${o}/${r}`;
+    if ([...reviews.values()].some((j) => j.repo === repo && j.status === "running")) throw new HttpError(409, "A review is already running for this project.");
+    const agent = resolveAgent({ agent: body?.agent || undefined, shell: false });
+    const job: ReviewJob = { id: String(++jobSeq), repo, status: "running", log: [], outcomes: [], startedAt: new Date().toISOString() };
+    reviews.set(job.id, job);
+    (async () => {
+      const prs = await findPrs(repo);
+      if (!prs.length) job.log.push("No pull requests in review that you can merge.");
+      else {
+        job.log.push(`Reviewing ${prs.length} pull request(s) with ${agent.name}…`);
+        job.outcomes = await reviewPrs(prs, agent, (ref, line) => job.log.push(`[${ref}] ${line}`));
+      }
+      job.status = "done";
+    })().catch((e) => {
+      job.status = "error";
+      job.error = e instanceof Error ? e.message : String(e);
+    });
+    return { reviewId: job.id };
+  }),
+
+  route("GET", "/api/reviews/:id", async ([id], _b, url) => {
+    const job = getReview(id);
+    const since = Number(url.searchParams.get("since") ?? 0);
+    return { ...job, log: job.log.slice(since), logLength: job.log.length };
+  }),
+
+  // Merges the pull requests this review found ready (approved, CI passing, no conflicts, unchanged since review).
+  route("POST", "/api/reviews/:id/merge", async ([id]) => {
+    const job = getReview(id);
+    if (job.status !== "done") throw new HttpError(400, "The review is still running.");
+    for (const o of job.outcomes.filter((x) => x.ready)) {
+      await mergePr(o);
+      job.log.push(o.merged ? `[${o.ref}] ✓ Merged` : `[${o.ref}] ✗ ${o.note}`);
+    }
+    return { ...job, log: [], logLength: job.log.length };
+  }),
+
   route("GET", "/api/jobs", async () => [...jobs.values()].map(publicJob).reverse()),
 
   route("GET", "/api/jobs/:id", async ([id], _b, url) => {
@@ -112,6 +163,12 @@ const localRoutes: Route[] = [
 
 const routes = [...localRoutes, ...sharedRoutes];
 
+function getReview(id: string): ReviewJob {
+  const job = reviews.get(id);
+  if (!job) throw new HttpError(404, "Review not found.");
+  return job;
+}
+
 function getJob(id: string): Job {
   const job = jobs.get(id);
   if (!job) throw new HttpError(404, "Run not found.");
@@ -125,7 +182,7 @@ function publicJob(j: Job) {
 
 const INDEX_HTML = new URL("../web/index.html", import.meta.url);
 
-export function serve(port: number, opts: { open?: boolean } = {}): void {
+export function serve(port: number, opts: { open?: boolean } = {}): Server {
   const allowedHosts = new Set([`127.0.0.1:${port}`, `localhost:${port}`]);
 
   const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
@@ -167,4 +224,5 @@ export function serve(port: number, opts: { open?: boolean } = {}): void {
     console.log(`lendmyai is running at ${url}  (keep this window open; Ctrl+C to stop)`);
     if (opts.open) openBrowser(url);
   });
+  return server;
 }

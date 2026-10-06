@@ -38,12 +38,14 @@ export function useNodeAuth(): void {
   });
 }
 
-export async function login(): Promise<void> {
+/** `onCode` lets an app show the sign-in code itself instead of the terminal. */
+export async function login(onCode?: (url: string, code: string) => void): Promise<void> {
   if (!CLIENT_ID) {
     throw new Error("GitHub sign-in is not configured in this build. Set LENDMYAI_GITHUB_CLIENT_ID, or sign in with `gh auth login`.");
   }
   const start = await post("https://github.com/login/device/code", { client_id: CLIENT_ID, scope: SCOPE });
-  console.log(`\nTo sign in, open ${start.verification_uri} and enter the code:\n\n    ${start.user_code}\n`);
+  if (onCode) onCode(start.verification_uri, start.user_code);
+  else console.log(`\nTo sign in, open ${start.verification_uri} and enter the code:\n\n    ${start.user_code}\n`);
   openBrowser(start.verification_uri);
 
   let interval = (start.interval ?? 5) * 1000;
