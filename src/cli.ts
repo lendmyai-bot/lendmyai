@@ -24,14 +24,13 @@ Contributors
       --agent <${AGENTS.map((a) => a.name).join("|")}>   Agent CLI to use (default: first one installed)
       --agent-cmd "<cmd {prompt}>"    Any other agent, e.g. "aider --message {prompt}"
       --model <name>                  Model to use (passed to the agent and recorded on the PR as a tag)
-      --allow-shell                   Let an unattended Claude run npm, npx, node and read-only git/ls/grep (to build and test)
       --headless                      Run unattended (edits only, no shell approval prompts)
       --yes                           Skip confirmations
   lendmyai auto [owner/repo]        Find open tasks and work on several at once, unattended
       --parallel <n>                  Tasks to work on at the same time (default 2, max 5)
       --max <n>                       Stop after this many tasks (default 5)
       --dry-run                       Only list the tasks that would be picked up
-      (also takes --agent, --agent-cmd, --model, --allow-shell and --yes)
+      (also takes --agent, --agent-cmd, --model and --yes)
   lendmyai release <owner/repo#123> Give up your claim (maintainers can release any claim)
 
 Maintainers
@@ -47,7 +46,6 @@ async function main(): Promise<void> {
       agent: { type: "string" },
       "agent-cmd": { type: "string" },
       model: { type: "string" },
-      "allow-shell": { type: "boolean" },
       headless: { type: "boolean" },
       yes: { type: "boolean", short: "y" },
       port: { type: "string", short: "p" },
@@ -85,13 +83,12 @@ async function main(): Promise<void> {
     }
     case "work":
       if (!arg) throw new Error("Usage: lendmyai work <owner/repo#123>");
-      return work(arg, { agent: values.agent, agentCmd: values["agent-cmd"], model: values.model, allowShell: values["allow-shell"], headless: values.headless, yes: values.yes });
+      return work(arg, { agent: values.agent, agentCmd: values["agent-cmd"], model: values.model, headless: values.headless, yes: values.yes });
     case "auto":
       return auto(arg, {
         agent: values.agent,
         agentCmd: values["agent-cmd"],
         model: values.model,
-        allowShell: values["allow-shell"],
         yes: values.yes,
         parallel: values.parallel ? Number(values.parallel) : undefined,
         max: values.max ? Number(values.max) : undefined,

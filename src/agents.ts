@@ -19,14 +19,14 @@ export interface Agent {
   /** Unattended run, restricted to file edits / sandboxed where the agent supports it. */
   headless(prompt: string): string[];
   /** Optional headless variant with machine-readable progress, plus a formatter for each output line. */
-  /** Flags that let an unattended run use a small set of safe-ish shell commands (build, test, read-only). */
+  /** Flags that let an unattended run build and test: a fixed set of build tools and read-only commands. */
   shellArgs?(): string[];
   /** Extra flags that select the model, for agents that support them. */
   modelArgs?(model?: string): string[];
   stream?: { args(prompt: string): string[]; format(line: string): string | null };
 }
 
-const CLAUDE_SHELL_TOOLS = ["npm", "npx", "node", "git status", "git diff", "git log", "ls", "cat", "grep"].map((c) => `Bash(${c}:*)`).join(",");
+const CLAUDE_SHELL_TOOLS = ["npm", "npx", "node", "yarn", "pnpm", "python", "python3", "pip", "pytest", "cargo", "go", "make", "git status", "git diff", "git log", "ls", "cat", "grep"].map((c) => `Bash(${c}:*)`).join(",");
 
 export const AGENTS: Agent[] = [
   {
@@ -81,7 +81,7 @@ export function installedAgents(): string[] {
  * Resolves the agent to run. `custom` is a command template such as
  * "aider --message {prompt}"; without a {prompt} placeholder the prompt is appended.
  */
-export function resolveAgent(opts: { agent?: string; custom?: string; model?: string; allowShell?: boolean }): ResolvedAgent {
+export function resolveAgent(opts: { agent?: string; custom?: string; model?: string }): ResolvedAgent {
   const { model } = opts;
   if (opts.custom) {
     const parts = opts.custom.trim().split(/\s+/);
@@ -104,7 +104,7 @@ export function resolveAgent(opts: { agent?: string; custom?: string; model?: st
   }
   const extra = agent.modelArgs?.(model) ?? [];
   // Only for unattended runs: an interactive session asks the contributor instead.
-  const unattended = opts.allowShell ? agent.shellArgs?.() ?? [] : [];
+  const unattended = agent.shellArgs?.() ?? [];
   return {
     name: agent.name,
     model,
