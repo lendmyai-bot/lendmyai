@@ -353,9 +353,11 @@ async function viewProjects() {
         <a href="#/publish"><button${me.mode === "local" ? "" : ` class="primary"`}>Add your project</button></a>
       </div>
     </div>
-    <div id="list">${loading("projects")}</div>`;
+    ${me.mode === "local" ? `<label class="check" style="display:flex;gap:8px;align-items:flex-start;margin:-6px 0 16px"><input type="checkbox" id="ponytail" style="width:auto;margin-top:3px" disabled><span><b>Write smaller changes</b> <span class="fine" style="display:block">Adds the <a href="https://ponytail.dev" target="_blank" rel="noopener">ponytail</a> rules to your AI's instructions: reuse what exists, shortest working diff, fewer tokens. Untick to turn it off.</span></span></label>` : ""}
+    <div id="list">${loading("projects")}</div>`
   if (signedOut()) loadSolvedCounter();
   document.getElementById("autoAll")?.addEventListener("click", (e) => startAuto(e.target, {}));
+  if (me.mode === "local") mountSettings();
   const list = document.getElementById("list");
   try {
     const projects = await call("GET", "/api/projects");
@@ -857,6 +859,20 @@ function timeline(events, o, r) {
     const note = ev.kind === "handoff" ? ev.text.split("\n").slice(1).join("\n").trim() : ev.kind === "failed" || ev.kind === "note" ? ev.text.split("\n").slice(1).join("\n").trim() : "";
     return `<li>${label(ev)}<div class="when">${ago(ev.at)}</div>${note ? `<div class="note md">${md(note)}</div>` : ""}</li>`;
   }).join("")}</ul>`;
+}
+
+// ---------- settings ----------
+async function mountSettings() {
+  const box = document.getElementById("ponytail");
+  if (!box) return;
+  try {
+    box.checked = (await call("GET", "/api/settings")).ponytail;
+    box.disabled = false;
+    box.addEventListener("change", async () => {
+      try { await call("POST", "/api/settings", { ponytail: box.checked }); toast(box.checked ? "Smaller changes: on" : "Smaller changes: off"); }
+      catch (e) { toast(e.message); box.checked = !box.checked; }
+    });
+  } catch { box.closest("label").hidden = true; }
 }
 
 // ---------- let my AI work on tasks ----------

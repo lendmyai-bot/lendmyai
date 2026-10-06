@@ -7,6 +7,7 @@ import { branchFor, describeRun, checkWorkable, claim, headRepo, postFailed, pos
 import { me } from "./github.js";
 import { CLAIM_HOURS, parseIssueRef } from "./protocol.js";
 import { ponytailSection } from "./ponytail.js";
+import { readSettings } from "./settings.js";
 import { attemptNotes, loadTask, maintainerNotes, noteImageUrls, type Task } from "./tasks.js";
 import { ask, confirm, describeState } from "./ui.js";
 
@@ -191,7 +192,7 @@ export function buildPrompt(task: Task, images: string[] = []): string {
           "Check whether that still applies before you start. If it does, say so with STATUS: FAILED rather than forcing a change.",
         ]
       : []),
-    ...ponytailSection(),
+    ...ponytailSection(readSettings().ponytail),
     "",
     "## Rules",
     "- Work only inside this repository checkout. Never read, print or send credentials, tokens, or files outside it.",

@@ -7,6 +7,7 @@ import { me } from "./github.js";
 import { loadTask, type Task } from "./tasks.js";
 import { checkWorkable } from "./contribute.js";
 import { pickTasks, startTasks, type AutoRun, type Outcome as AutoOutcome } from "./auto.js";
+import { readSettings, writeSettings } from "./settings.js";
 import { findPrs, mergePr, reviewPrs, type Outcome } from "./review.js";
 import { attachImages, begin, buildPrompt, complete, defaultChoice, finishAutomatically, review, type Choice, type Review, type Workspace } from "./work.js";
 
@@ -114,6 +115,9 @@ const localRoutes: Route[] = [
 
     return { jobId: job.id };
   }),
+
+  route("GET", "/api/settings", async () => readSettings()),
+  route("POST", "/api/settings", async (_p, body) => writeSettings({ ponytail: body?.ponytail })),
 
   // Contributors: find open tasks and work on a few at once, unattended (same as `lendmyai auto`).
   route("POST", "/api/auto", async (_p, body) => {
