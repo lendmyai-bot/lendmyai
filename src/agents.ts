@@ -19,10 +19,14 @@ export interface Agent {
   /** Unattended run, restricted to file edits / sandboxed where the agent supports it. */
   headless(prompt: string): string[];
   /** Optional headless variant with machine-readable progress, plus a formatter for each output line. */
+  /** Flags that let an unattended run build and test: a fixed set of build tools and read-only commands. */
+  shellArgs?(): string[];
   /** Extra flags that select the model, for agents that support them. */
   modelArgs?(model?: string): string[];
   stream?: { args(prompt: string): string[]; format(line: string): string | null };
 }
+
+const CLAUDE_SHELL_TOOLS = ["npm", "npx", "node", "yarn", "pnpm", "python", "python3", "pip", "pytest", "cargo", "go", "make", "git status", "git diff", "git log", "ls", "cat", "grep"].map((c) => `Bash(${c}:*)`).join(",");
 
 export const AGENTS: Agent[] = [
   {
@@ -31,6 +35,7 @@ export const AGENTS: Agent[] = [
     interactive: (p) => [p],
     headless: (p) => ["-p", p, "--permission-mode", "acceptEdits"],
     modelArgs: (m) => (m ? ["--model", m] : []),
+    shellArgs: () => ["--allowedTools", CLAUDE_SHELL_TOOLS],
     stream: {
       args: (p) => ["-p", p, "--permission-mode", "acceptEdits", "--output-format", "stream-json", "--verbose"],
       format: formatClaudeEvent,
@@ -98,14 +103,16 @@ export function resolveAgent(opts: { agent?: string; custom?: string; model?: st
     throw new Error(opts.agent ? `"${opts.agent}" is not installed or not on PATH.` : `No supported agent CLI found (${AGENTS.map((a) => a.bin).join(", ")}). Install one or use --agent-cmd.`);
   }
   const extra = agent.modelArgs?.(model) ?? [];
+  // Only for unattended runs: an interactive session asks the contributor instead.
+  const unattended = agent.shellArgs?.() ?? [];
   return {
     name: agent.name,
     model,
-    command: (prompt, headless) => [agent.bin, [...extra, ...(headless ? agent.headless(prompt) : agent.interactive(prompt))]],
+    command: (prompt, headless) => [agent.bin, headless ? [...extra, ...unattended, ...agent.headless(prompt)] : [...extra, ...agent.interactive(prompt)]],
     streamCommand: (prompt) =>
       agent.stream
-        ? { cmd: [agent.bin, [...extra, ...agent.stream.args(prompt)]], format: agent.stream.format }
-        : { cmd: [agent.bin, [...extra, ...agent.headless(prompt)]], format: (l) => l },
+        ? { cmd: [agent.bin, [...extra, ...unattended, ...agent.stream.args(prompt)]], format: agent.stream.format }
+        : { cmd: [agent.bin, [...extra, ...unattended, ...agent.headless(prompt)]], format: (l) => l },
   };
 }
 

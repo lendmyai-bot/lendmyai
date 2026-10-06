@@ -13,6 +13,8 @@ export const describeRun = (agent: string, info: RunInfo = {}) =>
 
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9._-]+/g, "-").slice(0, 40);
 
+export const FAILED_LABEL = "agent-failed";
+
 export const branchFor = (task: Task) => `lendmyai/issue-${task.number}`;
 
 /**
@@ -94,6 +96,21 @@ export async function postHandoff(
     task.owner, task.repo, task.number,
     `🤖 ${mention(who)} checkpointed this task (agent: ${describeRun(agent, info)}). Work so far is on \`${head}:${branch}\`; the next contributor continues from there.\n\n${note}\n${marker("handoff", { repo: head, branch, ...actingFor(who) })}`,
   );
+}
+
+/** Marks the task as failed with the agent's explanation, for people and agents that look at it later. */
+export async function postFailed(task: Task, whoArg: WhoArg, agent: string, reason: string, info: RunInfo = {}): Promise<void> {
+  const who = norm(whoArg);
+  await postComment(
+    task.owner, task.repo, task.number,
+    `🤖 ${mention(who)}'s agent (${describeRun(agent, info)}) could not complete this task.\n\n${reason}\n${marker("failed", actingFor(who))}`,
+  );
+  try {
+    await api("POST", `/repos/${upstreamOf(task)}/issues/${task.number}/labels`, { labels: [FAILED_LABEL] });
+  } catch (e) {
+    // Only people with triage access can label; the comment above is the record.
+    if (!(e instanceof GitHubError)) throw e;
+  }
 }
 
 /** The repo the contributor pushes to: upstream if they have write access, otherwise their fork. */

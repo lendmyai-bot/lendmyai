@@ -23,6 +23,8 @@ export function describeState(s: TaskState): string {
       return `available${resume}`;
     case "claimed":
       return `claimed by @${s.user} (${s.agent}) until ${new Date(s.expires).toLocaleString()}`;
+    case "failed":
+      return `failed: ${s.failure?.reason.replace(/\s+/g, " ").slice(0, 80) ?? "see the issue"}`;
     case "in-review":
       return `in review: PR #${s.pr} by @${s.user}`;
   }
