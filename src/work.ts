@@ -1,9 +1,9 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { resolveAgent, runAgent } from "./agents.js";
+import { resolveAgent, runAgent, type RunInfo } from "./agents.js";
 import { git, repoUrl } from "./git.js";
-import { branchFor, checkWorkable, claim, headRepo, postHandoff, release, submitPullRequest } from "./contribute.js";
+import { branchFor, describeRun, checkWorkable, claim, headRepo, postHandoff, release, submitPullRequest } from "./contribute.js";
 import { me } from "./github.js";
 import { CLAIM_HOURS, parseIssueRef } from "./protocol.js";
 import { loadTask, maintainerNotes, type Task } from "./tasks.js";
@@ -16,6 +16,7 @@ import { ask, confirm, describeState } from "./ui.js";
 export interface WorkOptions {
   agent?: string;
   agentCmd?: string;
+  model?: string;
   headless?: boolean;
   yes?: boolean;
 }
@@ -32,6 +33,8 @@ export interface Workspace {
 export interface Review {
   status: "DONE" | "PARTIAL" | "unknown";
   note: string;
+  /** Model the agent reported in its handoff note, if it knew it. */
+  model?: string;
   /** `git status --short` output, or a commit count if everything is committed. */
   changes: string;
   hasWork: boolean;
@@ -49,7 +52,7 @@ export async function work(ref: string, opts: WorkOptions): Promise<void> {
   console.log(`\n${label}: ${task.title}\n${task.url}\nState: ${describeState(task.state)}\n`);
   await checkWorkable(task, login);
 
-  const agent = resolveAgent({ agent: opts.agent, custom: opts.agentCmd });
+  const agent = resolveAgent({ agent: opts.agent, custom: opts.agentCmd, model: opts.model });
   console.log("----- task text (this is what your agent will read) -----");
   console.log(task.body.trim() || "(empty)");
   console.log("---------------------------------------------------------");
@@ -72,7 +75,7 @@ export async function work(ref: string, opts: WorkOptions): Promise<void> {
   const key = opts.yes ? fallback[0] : await ask(`\n${options}\nChoice [${fallback[0]}]: `, fallback[0]);
   const choice = (["pr", "checkpoint", "keep", "release"] as Choice[]).find((c) => c[0] === key[0]) ?? fallback;
 
-  const result = await complete(task, ws, login, agent.name, choice, r);
+  const result = await complete(task, ws, login, agent.name, choice, r, agent);
   console.log(`✓ ${result.message}${result.url ? `: ${result.url}` : ""}`);
 }
 
@@ -152,6 +155,7 @@ export function buildPrompt(task: Task): string {
     "- Do not push or open pull requests. lendmyai does that.",
     `- Before you stop, finished or not, write ${HANDOFF_FILE} with:`,
     "  - First line: `STATUS: DONE` or `STATUS: PARTIAL`",
+    "  - Next line: `MODEL: <the exact model id you are running as>`. Write `MODEL: unknown` rather than guess.",
     "  - What you changed and how you verified it",
     "  - If PARTIAL: what remains, so the next contributor's agent can continue",
   ].join("\n");
@@ -162,12 +166,16 @@ export function review(task: Task, ws: Workspace): Review {
   const handoffPath = join(ws.dir, HANDOFF_FILE);
   const rawNote = existsSync(handoffPath) ? readFileSync(handoffPath, "utf8").trim() : "";
   const status = !rawNote ? "unknown" : /^STATUS:\s*DONE/im.test(rawNote) ? "DONE" : "PARTIAL";
-  const note = rawNote.replace(/^STATUS:.*\n?/im, "").trim() || "_No handoff note was written._";
+  const field = (name: string) => {
+    const v = new RegExp(`^${name}:[ \\t]*(.+)$`, "im").exec(rawNote)?.[1].trim().replace(/[^\w .:/@+-]/g, "").slice(0, 40);
+    return v && !/^(unknown|n\/a|none)$/i.test(v) ? v : undefined;
+  };
+  const note = rawNote.replace(/^(STATUS|MODEL):.*\n?/gim, "").trim() || "_No handoff note was written._";
 
   const short = git(["status", "--short"], ws.dir, { quiet: true });
   const ahead = Number(git(["rev-list", "--count", `origin/${task.defaultBranch}..HEAD`], ws.dir, { quiet: true }));
   const changes = short || (ahead ? `${ahead} commit(s) ahead of ${task.defaultBranch}` : "");
-  return { status, note, changes, hasWork: changes !== "" };
+  return { status, note, model: field("MODEL"), changes, hasWork: changes !== "" };
 }
 
 export function defaultChoice(r: Review): Choice {
@@ -176,8 +184,10 @@ export function defaultChoice(r: Review): Choice {
 
 /** Finishes a run: opens the pull request, pushes a checkpoint, keeps the claim, or releases it. */
 export async function complete(
-  task: Task, ws: Workspace, login: string, agent: string, choice: Choice, r: Review,
+  task: Task, ws: Workspace, login: string, agent: string, choice: Choice, r: Review, info: RunInfo = {},
 ): Promise<{ message: string; url?: string }> {
+  // Flag wins; otherwise use what the agent said about itself in its handoff note.
+  info = { model: info.model ?? r.model };
   if (choice === "release") {
     await release(task, login, "gave up");
     return { message: `Released. Local work stays in ${ws.dir}` };
@@ -188,17 +198,17 @@ export async function complete(
 
   if (git(["status", "--porcelain"], ws.dir, { quiet: true })) {
     git(["add", "-A"], ws.dir, { quiet: true });
-    git(["commit", "-q", "-m", `${task.title} (#${task.number})`, "-m", `Agent: ${agent} via lendmyai`], ws.dir, { quiet: true });
+    git(["commit", "-q", "-m", `${task.title} (#${task.number})`, "-m", `Agent: ${describeRun(agent, info)} via lendmyai`], ws.dir, { quiet: true });
   }
   const ownFork = ws.head !== `${task.owner}/${task.repo}`;
   // Branches in the contributor's own fork belong to this task, so force is safe there.
   git(["push", "-q", ...(ownFork ? ["--force"] : []), repoUrl(ws.head), `HEAD:refs/heads/${ws.branch}`], ws.dir, { quiet: true });
 
   if (choice === "checkpoint") {
-    await postHandoff(task, login, agent, ws.head, ws.branch, r.note);
+    await postHandoff(task, login, agent, ws.head, ws.branch, r.note, info);
     return { message: "Checkpoint pushed and task handed off", url: `https://github.com/${ws.head}/tree/${ws.branch}` };
   }
 
-  const pr = await submitPullRequest(task, ws.head, ws.branch, login, agent, r.note);
+  const pr = await submitPullRequest(task, ws.head, ws.branch, login, agent, r.note, info);
   return { message: "Pull request opened", url: pr.html_url };
 }

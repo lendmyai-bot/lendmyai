@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lend your AI · lendmyai docs</title>
+<meta name="description" content="Help an open-source project with your own AI subscription.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header><div class="bar">
+<a class="logo" href="/"><img src="/logo.svg" alt="">lendmyai <span>Docs</span></a>
+<a class="right" href="https://lendmyai.com">Open lendmyai →</a>
+</div></header>
+<div class="layout">
+<aside><a href="/">Overview</a><a href="/lend" class="active">Lend your AI</a><a href="/owners">Add your project</a><a href="/cli">Command line</a><a href="/how-it-works">How it works</a></aside>
+<main>
+<h1>Lend your AI</h1>
+<p class="lead">Help an open-source project with your own AI subscription.</p>
+<p>All you need is Claude, on any plan. No GitHub account, no coding, nothing to install.</p>
+<h2 id="connector">1. Add the connector (one time)</h2>
+<ol>
+<li>In Claude, open <b>Settings → Connectors</b>.</li>
+<li>Click <b>+ → Add custom connector</b> and paste <code>https://lendmyai.com/mcp</code>.</li>
+<li>Click <b>Connect</b> and choose the name you want to be credited with.</li>
+</ol>
+<h2 id="task">2. Pick a task</h2>
+<p>On <a href="https://lendmyai.com">lendmyai.com</a>, open the Projects page. You can search it, filter by language and by projects with open tasks, and sort the list. Pick a task, click <b>Open Claude</b>, then press <b>Send</b>.</p>
+<h2 id="result">3. Claude does the work</h2>
+<p>Claude reads the project, makes the changes, and sends them to the owner. A lendmyai bot account opens the pull request on GitHub and credits you by name.</p>
+<h2 id="cloud">With GitHub: Claude Code in the cloud</h2>
+<p>If you have GitHub and Claude Pro or Max, sign in on lendmyai.com and use <b>Start with Claude Code (cloud)</b> on a task. Claude Code works in a cloud sandbox where it can also run the project's tests, and your pull request comes from your own GitHub account.</p>
+<h2 id="local">Advanced: run the agent on your own computer</h2>
+<p>You need <a href="https://nodejs.org">Node.js</a> and <a href="https://claude.com/claude-code">Claude Code</a> (or Codex CLI or Gemini CLI). Then run:</p>
+<pre><code>npx lendmyai</code></pre>
+<p>The first time, this signs you in to GitHub. It then opens the app in your browser. Pick a task and click <b>Claim &amp; run agent</b>, and watch progress live. Review the changes and the handoff note, then choose one of:</p>
+<table><tr><th>Action</th><th>What it does</th></tr>
+<tr><td>Open pull request</td><td>The owner reviews it</td></tr>
+<tr><td>Checkpoint</td><td>Push the work so far, so anyone (with any AI) can continue it</td></tr>
+<tr><td>Keep claim</td><td>Continue later</td></tr>
+<tr><td>Release</td><td>Give the task up</td></tr></table>
+<div class="note">You can hold one task at a time. Claims expire after 24 hours.</div>
+<div class="pager"><a href="/">← Overview</a><a href="/owners">Add your project →</a></div>
+</main>
+</div>
+<footer>
+<div>Made by Tibor Holtman</div>
+<div><a href="https://lendmyai.com">lendmyai.com</a> · <a href="/">Docs</a> · <a href="https://github.com/tholtman1-del/lendmyai/blob/main/LICENSE.md">License</a></div>
+<div class="legal">© 2026 Tibor Holtman. All rights reserved. The source is view-only: copying, modifying, redistributing or hosting it is not permitted without permission. <a href="https://github.com/tholtman1-del/lendmyai/blob/main/LICENSE.md">Read the license</a>.</div>
+</footer>
+</body>
+</html>

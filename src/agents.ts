@@ -19,6 +19,8 @@ export interface Agent {
   /** Unattended run, restricted to file edits / sandboxed where the agent supports it. */
   headless(prompt: string): string[];
   /** Optional headless variant with machine-readable progress, plus a formatter for each output line. */
+  /** Extra flags that select the model, for agents that support them. */
+  modelArgs?(model?: string): string[];
   stream?: { args(prompt: string): string[]; format(line: string): string | null };
 }
 
@@ -28,6 +30,7 @@ export const AGENTS: Agent[] = [
     bin: "claude",
     interactive: (p) => [p],
     headless: (p) => ["-p", p, "--permission-mode", "acceptEdits"],
+    modelArgs: (m) => (m ? ["--model", m] : []),
     stream: {
       args: (p) => ["-p", p, "--permission-mode", "acceptEdits", "--output-format", "stream-json", "--verbose"],
       format: formatClaudeEvent,
@@ -38,16 +41,23 @@ export const AGENTS: Agent[] = [
     bin: "codex",
     interactive: (p) => [p],
     headless: (p) => ["exec", "--full-auto", p],
+    modelArgs: (m) => (m ? ["-m", m] : []),
   },
   {
     name: "gemini",
     bin: "gemini",
     interactive: (p) => ["-i", p],
     headless: (p) => ["-p", p, "--approval-mode", "auto_edit"],
+    modelArgs: (m) => (m ? ["-m", m] : []),
   },
 ];
 
-export interface ResolvedAgent {
+/** Which model a run used, recorded on the commit and pull request. */
+export interface RunInfo {
+  model?: string;
+}
+
+export interface ResolvedAgent extends RunInfo {
   name: string;
   command(prompt: string, headless: boolean): [string, string[]];
   /** Headless command for streaming output to a UI; `format` turns raw output lines into log lines. */
@@ -66,7 +76,8 @@ export function installedAgents(): string[] {
  * Resolves the agent to run. `custom` is a command template such as
  * "aider --message {prompt}"; without a {prompt} placeholder the prompt is appended.
  */
-export function resolveAgent(opts: { agent?: string; custom?: string }): ResolvedAgent {
+export function resolveAgent(opts: { agent?: string; custom?: string; model?: string }): ResolvedAgent {
+  const { model } = opts;
   if (opts.custom) {
     const parts = opts.custom.trim().split(/\s+/);
     const command = (prompt: string): [string, string[]] => {
@@ -74,7 +85,8 @@ export function resolveAgent(opts: { agent?: string; custom?: string }): Resolve
       const withPrompt = args.includes("{prompt}") ? args.map((a) => (a === "{prompt}" ? prompt : a)) : [...args, prompt];
       return [parts[0], withPrompt];
     };
-    return { name: parts[0], command, streamCommand: (p) => ({ cmd: command(p), format: (l) => l }) };
+    // A custom command is run as written; the model is recorded only.
+    return { name: parts[0], model, command, streamCommand: (p) => ({ cmd: command(p), format: (l) => l }) };
   }
 
   const candidates = opts.agent ? AGENTS.filter((a) => a.name === opts.agent) : AGENTS;
@@ -85,13 +97,15 @@ export function resolveAgent(opts: { agent?: string; custom?: string }): Resolve
   if (!agent) {
     throw new Error(opts.agent ? `"${opts.agent}" is not installed or not on PATH.` : `No supported agent CLI found (${AGENTS.map((a) => a.bin).join(", ")}). Install one or use --agent-cmd.`);
   }
+  const extra = agent.modelArgs?.(model) ?? [];
   return {
     name: agent.name,
-    command: (prompt, headless) => [agent.bin, headless ? agent.headless(prompt) : agent.interactive(prompt)],
+    model,
+    command: (prompt, headless) => [agent.bin, [...extra, ...(headless ? agent.headless(prompt) : agent.interactive(prompt))]],
     streamCommand: (prompt) =>
       agent.stream
-        ? { cmd: [agent.bin, agent.stream.args(prompt)], format: agent.stream.format }
-        : { cmd: [agent.bin, agent.headless(prompt)], format: (l) => l },
+        ? { cmd: [agent.bin, [...extra, ...agent.stream.args(prompt)]], format: agent.stream.format }
+        : { cmd: [agent.bin, [...extra, ...agent.headless(prompt)]], format: (l) => l },
   };
 }
 
