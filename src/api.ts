@@ -4,6 +4,7 @@ import {
   branchFor, buildCloudPrompt, checkWorkable, claim, claudeCodeUrl, findPushedWork, headRepo, postHandoff, prepareBranch, release, submitPullRequest,
 } from "./contribute.js";
 import { createTask, listProject, managedRepos } from "./projects.js";
+import { approveSuggestion, createSuggestion, declineSuggestion, listSuggestions, voteSuggestion } from "./suggestions.js";
 import { listTasks, loadTask, maintainerNotes, type Task } from "./tasks.js";
 
 // JSON API shared by the local app (src/server.ts) and the website
@@ -116,6 +117,27 @@ export const sharedRoutes: Route[] = [
     const full = `${o}/${r}`;
     const { names } = await api<{ names: string[] }>("GET", `/repos/${full}/topics`);
     await api("PUT", `/repos/${full}/topics`, { names: names.filter((n) => n !== REPO_TOPIC) });
+    return { ok: true };
+  }),
+
+  // ---------- suggestions ----------
+
+  route("GET", "/api/projects/:owner/:repo/suggestions", async ([o, r]) => listSuggestions(`${o}/${r}`), { public: true }),
+
+  route("POST", "/api/projects/:owner/:repo/suggestions", async ([o, r], body) => {
+    const issue = await createSuggestion(`${o}/${r}`, String(body?.title ?? ""), String(body?.body ?? ""));
+    return { number: issue.number, url: issue.url };
+  }),
+
+  route("POST", "/api/projects/:owner/:repo/suggestions/:n/vote", async ([o, r, n]) => voteSuggestion(`${o}/${r}`, Number(n))),
+
+  route("POST", "/api/projects/:owner/:repo/suggestions/:n/approve", async ([o, r, n]) => {
+    await approveSuggestion(`${o}/${r}`, Number(n));
+    return { ok: true };
+  }),
+
+  route("POST", "/api/projects/:owner/:repo/suggestions/:n/decline", async ([o, r, n]) => {
+    await declineSuggestion(`${o}/${r}`, Number(n));
     return { ok: true };
   }),
 
