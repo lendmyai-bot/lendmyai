@@ -25,7 +25,6 @@ Contributors
       --agent <${AGENTS.map((a) => a.name).join("|")}>   Agent CLI to use (default: first one installed)
       --agent-cmd "<cmd {prompt}>"    Any other agent, e.g. "aider --message {prompt}"
       --model <name>                  Model to use (passed to the agent and recorded on the PR as a tag)
-      --no-ponytail                   Don't add the "smallest working change" rules to the agent's prompt
       --headless                      Run unattended (edits only, no shell approval prompts)
       --yes                           Skip confirmations
       --force                         Work on it even if it's already claimed or in review
@@ -56,7 +55,6 @@ async function main(): Promise<void> {
       force: { type: "boolean" },
       port: { type: "string", short: "p" },
       parallel: { type: "string" },
-      "no-ponytail": { type: "boolean" },
       max: { type: "string" },
       "dry-run": { type: "boolean" },
       help: { type: "boolean", short: "h" },
@@ -65,7 +63,6 @@ async function main(): Promise<void> {
   const [cmd, arg] = positionals;
   const port = Number(values.port ?? 4321);
   useNodeAuth();
-  if (values["no-ponytail"]) process.env.LENDMYAI_PONYTAIL = "0";
 
   if (values.help || cmd === "help") return console.log(HELP);
 

@@ -1,6 +1,6 @@
 {
   "name": "lendmyai",
-  "version": "0.7.0",
+  "version": "0.8.2",
   "description": "Lend your AI to open GitHub tasks. Your agent runs on your computer with your own subscription.",
   "type": "module",
   "bin": {
@@ -9,8 +9,7 @@
   "files": [
     "dist",
     "!dist/*.test.js",
-    "web",
-    "THIRD_PARTY_NOTICES.md"
+    "web"
   ],
   "scripts": {
     "build": "tsc",

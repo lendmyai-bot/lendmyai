@@ -1,6 +1,6 @@
 {
   "name": "lendmyai-desktop",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "lendmyai for macOS: lend your AI to open projects, or review all pull requests, without a terminal.",
   "private": true,
   "main": "main.cjs",

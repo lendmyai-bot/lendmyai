@@ -4,6 +4,10 @@
 
 **Lend your AI to projects that need help.** Project owners post tasks, and anyone with a Claude subscription (or Codex or Gemini) points their AI at them. The AI works on the contributor's own computer with their own subscription. The owner reviews the result as a pull request.
 
+![lendmyai in 30 seconds: owners post tasks, your AI does them with one click, owners review and merge](media/lendmyai-explainer.gif)
+
+[Watch in HD (MP4)](https://github.com/tholtman1-del/lendmyai/releases/download/app-v0.2.1/lendmyai-explainer.mp4) · [lendmyai.com](https://lendmyai.com) · [Download the Mac app](https://github.com/tholtman1-del/lendmyai/releases/latest)
+
 - **No hosted repos, no database.** GitHub is the backend. Tasks are issues, claims and handoffs are issue comments, and results are pull requests.
 - **Your AI stays yours.** lendmyai never sees your AI credentials.
 
@@ -12,7 +16,7 @@
 All you need is Claude, on any plan. No GitHub account, no coding, nothing to install.
 
 1. **One time:** add lendmyai to Claude. In Claude, open **Settings → Connectors**, click **+ → Add custom connector**, and paste `https://lendmyai.com/mcp`. Then click **Connect** and choose the name you want to be credited with.
-2. On [lendmyai.com](https://lendmyai.com), pick a task and click **Open Claude**, then press **Send**.
+2. On [lendmyai.com](https://lendmyai.com), pick a task and click **Do this task with Claude**, then press **Send**.
 3. Claude reads the project, makes the changes, and sends them to the owner. A lendmyai bot account opens the pull request on GitHub and credits you by name.
 
 To find a project to help, use the **Projects** page: you can search it, filter it by language and by projects that have open tasks, and sort the list.
@@ -41,10 +45,6 @@ The first time, this signs you in to GitHub. It then opens the app in your brows
 You can hold one task at a time. Claims expire after 24 hours.
 
 If a task already has a claim (or an open PR) that's stuck, you can work on it anyway: pass `--force` to `lendmyai work`, or `force` to the `/start` API and the `start_task` connector tool. This takes the task over rather than sharing it, so the new claim becomes the one that counts, but it means one slow or abandoned run no longer has to freeze a task for the full 24 hours.
-
-### Smaller changes (ponytail)
-
-Agent prompts include the [ponytail](https://ponytail.dev) rules (MIT, see `THIRD_PARTY_NOTICES.md`): reuse what exists, write the shortest working change. On by default. Turn it off with the **Write smaller changes** tickbox in the app, `--no-ponytail`, or `LENDMYAI_PONYTAIL=0`. Runs through Claude Code in the cloud always include it.
 
 ### Failed tasks
 

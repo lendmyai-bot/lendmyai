@@ -123,13 +123,16 @@ export interface TaskSummary {
  * picking up several tasks at once.
  */
 export async function listTasks(repoFilter?: string, limit = 30): Promise<TaskSummary[]> {
-  const q = [`is:issue`, `is:open`, `label:${TASK_LABEL}`, repoFilter ? `repo:${repoFilter}` : `archived:false`].join(" ");
-  const res = await api<any>("GET", `/search/issues?q=${encodeURIComponent(q)}&sort=updated&per_page=${limit}`);
+  // One project: list its issues directly. GitHub's search index lags behind new issues by a minute or more,
+  // and an owner who just added a task expects to see it at once. Across projects, search is the only way.
+  const items: any[] = repoFilter
+    ? (await api<any[]>("GET", `/repos/${repoFilter}/issues?labels=${TASK_LABEL}&state=open&sort=updated&per_page=${Math.min(limit, 100)}`)).filter((i) => !i.pull_request)
+    : (await api<any>("GET", `/search/issues?q=${encodeURIComponent(["is:issue", "is:open", `label:${TASK_LABEL}`, "archived:false"].join(" "))}&sort=updated&per_page=${limit}`)).items;
 
   const optedIn = new Map<string, boolean>();
   const out: TaskSummary[] = [];
-  for (const item of res.items) {
-    const fullName = item.repository_url.replace("https://api.github.com/repos/", "");
+  for (const item of items) {
+    const fullName: string = repoFilter ?? item.repository_url.replace("https://api.github.com/repos/", "");
     if (!repoFilter) {
       // Repos opt in to public discovery by adding the lendmyai topic.
       if (!optedIn.has(fullName)) {

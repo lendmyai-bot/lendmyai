@@ -6,3 +6,4 @@ desktop/node_modules/
 desktop/bundle/
 desktop/dist/
 .DS_Store
+video/out/
