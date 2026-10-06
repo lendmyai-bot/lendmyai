@@ -247,7 +247,7 @@
   <div class="bar">
     <a class="logo" href="#/"><svg class="logo-mark" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="15" fill="#5b3ee6"/><svg x="6" y="9" width="52" height="46" viewBox="25 1 50 44" color="#ffffff"><g transform="translate(-6 0)" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M-4 16.5 C8 16.5 16 17 22 17.5 C27 17.8 31 17.5 35 19 L46 22.6 C47.6 23.1 47.3 25.6 45.6 25.4 L37.5 24.2 C40.5 25.4 41.6 27.8 40.2 29.2 C39 30.3 36.8 29.8 35.2 28.7 C36.2 30.4 35.8 32 34 32.4 C32.4 32.7 30.8 31.8 29.6 30.6 C29.9 32 28.8 33 27.2 32.7 C23.5 32 19.5 28.4 14 27.8 C8 27.3 3 27.3 -4 27.3"/><path d="M28 21.8 C30.5 23.2 32.5 24.3 35.5 24.6"/></g><g transform="translate(106 -3) scale(-1 1) rotate(-7 46 24)" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M-4 16.5 C8 16.5 16 17 22 17.5 C27 17.8 31 17.5 35 19 L46 22.6 C47.6 23.1 47.3 25.6 45.6 25.4 L37.5 24.2 C40.5 25.4 41.6 27.8 40.2 29.2 C39 30.3 36.8 29.8 35.2 28.7 C36.2 30.4 35.8 32 34 32.4 C32.4 32.7 30.8 31.8 29.6 30.6 C29.9 32 28.8 33 27.2 32.7 C23.5 32 19.5 28.4 14 27.8 C8 27.3 3 27.3 -4 27.3"/><path d="M28 21.8 C30.5 23.2 32.5 24.3 35.5 24.6"/></g><path fill="currentColor" d="M50.00 17.00 C50.66 21.18 51.32 21.84 55.50 22.50 C51.32 23.16 50.66 23.82 50.00 28.00 C49.34 23.82 48.68 23.16 44.50 22.50 C48.68 21.84 49.34 21.18 50.00 17.00 Z"/></svg></svg>lendmyai</a>
     <nav>
-      <a href="#/" data-nav="projects">Projects</a>
+      <a href="#/projects" data-nav="projects">Projects</a>
       <a href="#/publish" data-nav="publish">Add project</a>
       <a href="#/runs" data-nav="runs">Runs</a>
     </nav>
@@ -369,7 +369,7 @@ const loading = (what) => `<p class="sub"><span class="spinner"></span>&nbsp; Lo
 async function render() {
   clearInterval(pollTimer);
   const parts = location.hash.replace(/^#\/?/, "").split("/").filter(Boolean).map(decodeURIComponent);
-  const view = parts[0] || "projects";
+  const view = parts[0] || "home";
   const navFor = { task: "projects", project: "projects", run: "runs" };
   document.querySelectorAll("[data-nav]").forEach((a) => a.classList.toggle("active", a.dataset.nav === (navFor[view] ?? view)));
   window.scrollTo(0, 0);
@@ -382,7 +382,8 @@ async function render() {
     if (view === "auto") return await viewAuto(parts[1]);
     if (view === "publish") return await viewPublish();
     if (view === "runs") return await viewRuns();
-    return await viewProjects();
+    if (view === "projects") return await viewProjects();
+    return await viewHome();
   } catch (e) {
     main.innerHTML = errorBox(e);
   }
@@ -403,10 +404,16 @@ const PROJECT_SORTS = [
   ["name", "Name A-Z"],
 ];
 
+/** The front page: the explainer for visitors who aren't signed in. Everyone else goes straight to the projects. */
+async function viewHome() {
+  if (!signedOut()) { location.replace("#/projects"); return; }
+  main.innerHTML = heroHtml(true);
+  loadSolvedCounter();
+}
+
 async function viewProjects() {
   main.innerHTML = `
-    ${signedOut() ? heroHtml(true) : ""}
-    <div class="row" id="projects-list" style="justify-content:space-between;flex-wrap:wrap;align-items:flex-end;margin-bottom:20px;${signedOut() ? "margin-top:40px" : ""}">
+    <div class="row" id="projects-list" style="justify-content:space-between;flex-wrap:wrap;align-items:flex-end;margin-bottom:20px">
       <div><h1>Projects</h1><p class="sub" style="margin:0">Open-source projects looking for help. Pick one and lend your AI to its tasks.</p></div>
       <div class="row">
         ${me.mode === "local" ? `<button id="autoAll" class="primary">Let my AI work on tasks</button>` : ""}
@@ -415,7 +422,6 @@ async function viewProjects() {
     </div>
     ${me.mode === "local" ? `<label class="check" style="display:flex;gap:8px;align-items:flex-start;margin:-6px 0 16px"><input type="checkbox" id="ponytail" style="width:auto;margin-top:3px" disabled><span><b>Write smaller changes</b> <span class="fine" style="display:block">Adds the <a href="https://ponytail.dev" target="_blank" rel="noopener">ponytail</a> rules to your AI's instructions: reuse what exists, shortest working diff, fewer tokens. Untick to turn it off.</span></span></label>` : ""}
     <div id="list">${loading("projects")}</div>`
-  if (signedOut()) loadSolvedCounter();
   document.getElementById("autoAll")?.addEventListener("click", (e) => startAuto(e.target, {}));
   if (me.mode === "local") mountSettings();
   const list = document.getElementById("list");
@@ -531,12 +537,12 @@ function projectCard(p) {
 // ---------- project ----------
 async function viewProject(o, r) {
   const full = `${o}/${r}`;
-  main.innerHTML = `<a class="back" href="#/">← Projects</a>${loading("project")}`;
+  main.innerHTML = `<a class="back" href="#/projects">← Projects</a>${loading("project")}`;
   const p = await call("GET", `/api/projects/${encodeURIComponent(o)}/${encodeURIComponent(r)}`);
   const inReview = p.tasks.filter((t) => t.state.kind === "in-review").length;
   const failed = p.tasks.filter((t) => t.state.kind === "failed").length;
   main.innerHTML = `
-    <a class="back" href="#/">← Projects</a>
+    <a class="back" href="#/projects">← Projects</a>
     <div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px">
       <div class="row" style="gap:12px">
         ${p.avatar ? `<img class="avatar big" src="${esc(p.avatar)}&s=96" alt="">` : ""}
@@ -947,7 +953,7 @@ async function viewAuto(id) {
   main.innerHTML = loading("progress");
   let job = await call("GET", `/api/autos/${id}?since=0`);
   main.innerHTML = `
-    <a class="back" href="#/">← Projects</a>
+    <a class="back" href="#/projects">← Projects</a>
     <div class="row" style="justify-content:space-between;flex-wrap:wrap;margin-bottom:12px">
       <h1>Your AI is working</h1>
       <div class="row"><span id="status"></span><button id="stop" class="danger" hidden>Stop</button></div>
@@ -1143,7 +1149,7 @@ async function viewRuns() {
   main.innerHTML = `<h1>Runs</h1><p class="sub">Agent runs started from this browser since the server started.</p>
     <div class="panel">${jobs.length ? `<table><tr><th>Task</th><th>Agent</th><th>Status</th><th>Started</th></tr>
       ${jobs.map((j) => `<tr><td><a href="#/run/${j.id}">${esc(j.ref)}</a></td><td>${esc(j.agent)}</td><td>${esc(j.status)}</td><td>${ago(j.startedAt)}</td></tr>`).join("")}
-    </table>` : `<p class="sub" style="margin:0">No runs yet. Pick a task on the <a href="#/">board</a>.</p>`}</div>`;
+    </table>` : `<p class="sub" style="margin:0">No runs yet. Pick a task on the <a href="#/projects">board</a>.</p>`}</div>`;
 }
 
 // ---------- add project ----------
@@ -1254,7 +1260,7 @@ document.addEventListener("click", (e) => {
 
 function heroHtml(browseLink) {
   const browse = browseLink
-    ? `<button class="primary big" onclick="document.getElementById('projects-list').scrollIntoView({ behavior: 'smooth' })">Browse projects</button>`
+    ? `<a href="#/projects"><button class="primary big">Browse projects</button></a>`
     : signInButton("Sign in with GitHub", "primary big");
   return `
     <section class="lm-hero">
@@ -1295,7 +1301,7 @@ function heroHtml(browseLink) {
             <li>Your name is credited on every change</li>
             <li>Power users: a Mac app can work on several tasks for you at once</li>
           </ul>
-          ${browseLink ? `<button class="primary" onclick="document.getElementById('projects-list').scrollIntoView({ behavior: 'smooth' })">Find a task</button>` : signInButton("Sign in with GitHub", "primary")}
+          ${browseLink ? `<a href="#/projects"><button class="primary">Find a task</button></a>` : signInButton("Sign in with GitHub", "primary")}
         </div>
         <div class="lm-card">
           <span class="lm-tag lm-tag-owner">I have a project</span>
