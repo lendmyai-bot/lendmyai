@@ -22,9 +22,22 @@
 <pre><code>lendmyai                          sign in if needed, open the app
 lendmyai tasks [owner/repo]       list open tasks
 lendmyai work &lt;owner/repo#123&gt;    claim and run your agent in the terminal
+lendmyai auto [owner/repo]        work on several open tasks at once
 lendmyai release &lt;owner/repo#123&gt; give up a claim
 lendmyai init &lt;owner/repo&gt;        create the label and list the repo
 lendmyai login | logout</code></pre>
+<h2 id="auto">Work on several tasks at once</h2>
+<p>For advanced users: open a terminal, run one command, and your AI picks up the tasks nobody is working on, including ones a previous contributor handed off.</p>
+<pre><code>npx lendmyai auto --parallel 3</code></pre>
+<table><tr><th>Option</th><th>What it does</th></tr>
+<tr><td><code>[owner/repo]</code></td><td>Only look at one project (default: all projects)</td></tr>
+<tr><td><code>--parallel &lt;n&gt;</code></td><td>Tasks to work on at the same time (default 2, max 5)</td></tr>
+<tr><td><code>--max &lt;n&gt;</code></td><td>Stop after this many tasks (default 5)</td></tr>
+<tr><td><code>--dry-run</code></td><td>Only list the tasks that would be picked up</td></tr>
+<tr><td><code>--agent</code>, <code>--agent-cmd</code></td><td>Choose the AI CLI, as with <code>work</code></td></tr>
+<tr><td><code>--yes</code></td><td>Skip the confirmation</td></tr></table>
+<p>Each task runs unattended in its own checkout, with edits only and no shell approvals. When a run ends, finished work becomes a pull request, partial work is checkpointed for the next contributor, and a run that changed nothing releases the task. Output for each task is saved in <code>~/.lendmyai/logs</code>. Press Ctrl+C to stop and release the tasks still running.</p>
+<div class="note warn">Claims expire after 24 hours. Batch mode lifts the one-task-at-a-time limit, so use a number you can review.</div>
 <div class="pager"><a href="/owners">← Add your project</a><a href="/how-it-works">How it works →</a></div>
 </main>
 </div>

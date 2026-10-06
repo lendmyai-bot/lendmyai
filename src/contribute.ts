@@ -22,14 +22,17 @@ export const mention = (w: Who) => (isDelegated(w) ? `**${w.name ?? "A contribut
 const actingFor = (w: Who) => (isDelegated(w) ? { by: w.id, name: w.name } : {});
 const upstreamOf = (task: Task) => `${task.owner}/${task.repo}`;
 
-/** Throws if `login` may not start (or resume) this task. */
-export async function checkWorkable(task: Task, whoArg: WhoArg): Promise<void> {
+/**
+ * Throws if `login` may not start (or resume) this task. `allowMultiple` lifts the
+ * one-task-at-a-time limit, for batch runs that choose how many tasks to hold.
+ */
+export async function checkWorkable(task: Task, whoArg: WhoArg, opts: { allowMultiple?: boolean } = {}): Promise<void> {
   const who = norm(whoArg);
   if (task.blocked) throw new Error(task.blocked);
   const s = task.state;
   if (s.kind === "in-review") throw new Error(`Task is already in review (PR #${s.pr}).`);
   if (s.kind === "claimed" && s.user !== who.id) throw new Error(`Someone else is working on this task until ${s.expires}.`);
-  if (s.kind !== "claimed") await ensureNoOtherClaim(who, `${upstreamOf(task)}#${task.number}`);
+  if (s.kind !== "claimed" && !opts.allowMultiple) await ensureNoOtherClaim(who, `${upstreamOf(task)}#${task.number}`);
 }
 
 async function ensureNoOtherClaim(who: Who, current: string): Promise<void> {

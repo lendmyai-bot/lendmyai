@@ -8,6 +8,7 @@ import { REPO_TOPIC, TASK_LABEL, marker, parseIssueRef } from "./protocol.js";
 import { listTasks, loadTask, stateOf } from "./tasks.js";
 import { serve } from "./server.js";
 import { describeState } from "./ui.js";
+import { auto } from "./auto.js";
 import { work } from "./work.js";
 
 const HELP = `lendmyai: lend your AI to open GitHub tasks.
@@ -24,6 +25,11 @@ Contributors
       --agent-cmd "<cmd {prompt}>"    Any other agent, e.g. "aider --message {prompt}"
       --headless                      Run unattended (edits only, no shell approval prompts)
       --yes                           Skip confirmations
+  lendmyai auto [owner/repo]        Find open tasks and work on several at once, unattended
+      --parallel <n>                  Tasks to work on at the same time (default 2, max 5)
+      --max <n>                       Stop after this many tasks (default 5)
+      --dry-run                       Only list the tasks that would be picked up
+      (also takes --agent, --agent-cmd and --yes)
   lendmyai release <owner/repo#123> Give up your claim (maintainers can release any claim)
 
 Maintainers
@@ -41,6 +47,9 @@ async function main(): Promise<void> {
       headless: { type: "boolean" },
       yes: { type: "boolean", short: "y" },
       port: { type: "string", short: "p" },
+      parallel: { type: "string" },
+      max: { type: "string" },
+      "dry-run": { type: "boolean" },
       help: { type: "boolean", short: "h" },
     },
   });
@@ -73,6 +82,15 @@ async function main(): Promise<void> {
     case "work":
       if (!arg) throw new Error("Usage: lendmyai work <owner/repo#123>");
       return work(arg, { agent: values.agent, agentCmd: values["agent-cmd"], headless: values.headless, yes: values.yes });
+    case "auto":
+      return auto(arg, {
+        agent: values.agent,
+        agentCmd: values["agent-cmd"],
+        yes: values.yes,
+        parallel: values.parallel ? Number(values.parallel) : undefined,
+        max: values.max ? Number(values.max) : undefined,
+        dryRun: values["dry-run"],
+      });
     case "release":
       if (!arg) throw new Error("Usage: lendmyai release <owner/repo#123>");
       return releaseCmd(arg);
