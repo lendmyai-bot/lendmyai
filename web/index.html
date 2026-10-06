@@ -722,7 +722,9 @@ async function viewTask(o, r, n) {
         ${s.failure && !t.blocked && s.kind !== "in-review" && !signedOut() ? `<div class="panel" style="margin-bottom:16px">
           <label for="attemptNote" style="font-weight:600">Add a short note before trying again</label>
           <textarea id="attemptNote" rows="2" maxlength="1000" placeholder="e.g. The button should only appear for signed-in users." style="margin-top:6px"></textarea>
-          <div class="row" style="margin-top:8px;gap:10px"><button id="saveNote">Save note</button><span class="fine">The next AI that works on this task reads it first.</span></div>
+          <div id="noteThumbs" class="row" style="margin-top:8px;gap:8px;flex-wrap:wrap"></div>
+          <input type="file" id="noteFile" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden>
+          <div class="row" style="margin-top:8px;gap:10px;flex-wrap:wrap"><button id="addImages">Add images</button><button id="saveNote">Save note</button><span class="fine">The next AI that works on this task reads the note and sees the images (up to 3, 2 MB each; you can also paste them).</span></div>
         </div>` : ""}
         ${t.warnings.map((w) => `<div class="banner warn">⚠ ${esc(w)}</div>`).join("")}
         <div class="panel"><h2>Task</h2><div class="md">${md(t.body)}</div></div>
@@ -744,11 +746,33 @@ async function viewTask(o, r, n) {
     forcedTasks.add(t.ref);
     render();
   });
+  // Images for the note: picked or pasted, shown as thumbnails, sent as base64.
+  const noteImgs = [];
+  const drawThumbs = () => {
+    const box = document.getElementById("noteThumbs");
+    if (!box) return;
+    box.innerHTML = noteImgs.map((im, i) => `<span style="position:relative"><img src="${im.url}" alt="" style="height:56px;border-radius:6px;border:1px solid var(--border)"><button data-rm="${i}" title="Remove" style="position:absolute;top:-6px;right:-6px;padding:0 6px;border-radius:999px">×</button></span>`).join("");
+    box.querySelectorAll("[data-rm]").forEach((b) => b.addEventListener("click", () => { noteImgs.splice(Number(b.dataset.rm), 1); drawThumbs(); }));
+  };
+  const addImageFiles = (files) => {
+    for (const f of files) {
+      if (!f.type.startsWith("image/")) continue;
+      if (noteImgs.length >= 3) { toast("Up to 3 images."); break; }
+      if (f.size > 2_000_000) { toast(`${f.name || "Image"} is larger than 2 MB.`); continue; }
+      const reader = new FileReader();
+      reader.onload = () => { noteImgs.push({ name: f.name, data: String(reader.result).split(",")[1], url: reader.result }); drawThumbs(); };
+      reader.readAsDataURL(f);
+    }
+  };
+  const noteBody = (text) => ({ text, images: noteImgs.map(({ name, data }) => ({ name, data })) });
+  document.getElementById("addImages")?.addEventListener("click", () => document.getElementById("noteFile").click());
+  document.getElementById("noteFile")?.addEventListener("change", (e) => { addImageFiles(e.target.files); e.target.value = ""; });
+  document.getElementById("attemptNote")?.addEventListener("paste", (e) => addImageFiles([...(e.clipboardData?.files ?? [])]));
   document.getElementById("saveNote")?.addEventListener("click", async (e) => {
     const text = document.getElementById("attemptNote").value.trim();
-    if (!text) return toast("Write a short note first.");
+    if (!text && !noteImgs.length) return toast("Write a short note first.");
     e.target.disabled = true;
-    try { await call("POST", `/api/tasks/${o}/${r}/${n}/note`, { text }); toast("Note saved. Run the task again."); render(); }
+    try { await call("POST", `/api/tasks/${o}/${r}/${n}/note`, noteBody(text)); toast("Note saved. Run the task again."); render(); }
     catch (err) { toast(err.message); e.target.disabled = false; }
   });
   document.getElementById("run")?.addEventListener("click", async (e) => {
@@ -758,7 +782,7 @@ async function viewTask(o, r, n) {
     try {
       // A note typed above is saved first, so this attempt reads it.
       const pending = document.getElementById("attemptNote")?.value.trim();
-      if (pending) await call("POST", `/api/tasks/${o}/${r}/${n}/note`, { text: pending });
+      if (pending || noteImgs.length) await call("POST", `/api/tasks/${o}/${r}/${n}/note`, noteBody(pending ?? ""));
       const { jobId } = await call("POST", `/api/tasks/${o}/${r}/${n}/run`, { agent, force: forced });
       location.hash = `#/run/${jobId}`;
     } catch (err) {

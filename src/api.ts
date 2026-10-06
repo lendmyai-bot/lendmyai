@@ -205,7 +205,7 @@ export const sharedRoutes: Route[] = [
   // A short note for the next attempt, e.g. after a task failed. The agent reads it before it starts.
   route("POST", "/api/tasks/:owner/:repo/:n/note", async ([o, r, n], body) => {
     const [login, task] = await Promise.all([me(), loadTask(o, r, Number(n))]);
-    await postNote(task, login, String(body?.text ?? "")).catch((e) => {
+    await postNote(task, login, String(body?.text ?? ""), Array.isArray(body?.images) ? body.images : []).catch((e) => {
       throw new HttpError(400, e.message);
     });
     return { ok: true };

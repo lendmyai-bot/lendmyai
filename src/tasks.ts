@@ -99,6 +99,15 @@ export function attemptNotes(task: Task): { user: string; trusted: boolean; text
     .slice(-5);
 }
 
+/** Image links in notes that lendmyai itself stored (and only those), for giving the agent local copies. */
+export function noteImageUrls(task: Task): string[] {
+  const urls = new Set<string>();
+  for (const n of attemptNotes(task)) {
+    for (const m of n.text.matchAll(/!\[[^\]]*\]\((https:\/\/raw\.githubusercontent\.com\/[\w.-]+\/[\w.-]+\/lendmyai-assets\/lendmyai-assets\/\d+\/[\w.-]+\.(?:png|jpg|gif|webp))\)/g)) urls.add(m[1]);
+  }
+  return [...urls].slice(0, 6);
+}
+
 export interface TaskSummary {
   ref: string;
   title: string;

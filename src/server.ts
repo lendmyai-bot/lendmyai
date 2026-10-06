@@ -8,7 +8,7 @@ import { loadTask, type Task } from "./tasks.js";
 import { checkWorkable } from "./contribute.js";
 import { pickTasks, startTasks, type AutoRun, type Outcome as AutoOutcome } from "./auto.js";
 import { findPrs, mergePr, reviewPrs, type Outcome } from "./review.js";
-import { begin, buildPrompt, complete, defaultChoice, finishAutomatically, review, type Choice, type Review, type Workspace } from "./work.js";
+import { attachImages, begin, buildPrompt, complete, defaultChoice, finishAutomatically, review, type Choice, type Review, type Workspace } from "./work.js";
 
 // Local app: the shared website API plus agent runs on this computer. It binds
 // to 127.0.0.1 only and rejects requests whose Host or Origin is not this
@@ -90,7 +90,7 @@ const localRoutes: Route[] = [
       log(`Workspace: ${ws.dir} (branch ${ws.branch})`);
       log(`Starting ${agent.name} (headless)…`);
       job.status = "running";
-      const run = streamAgent(agent.streamCommand(buildPrompt(task)), ws.dir, log);
+      const run = streamAgent(agent.streamCommand(buildPrompt(task, await attachImages(task, ws.dir))), ws.dir, log);
       job.kill = run.kill;
       const code = await run.done;
       job.kill = undefined;

@@ -6,7 +6,7 @@ import { checkWorkable, release } from "./contribute.js";
 import { me } from "./github.js";
 import { listTasks, loadTask, type Task } from "./tasks.js";
 import { confirmStrict as confirm, describeState } from "./ui.js";
-import { begin, buildPrompt, finishAutomatically, review } from "./work.js";
+import { attachImages, begin, buildPrompt, finishAutomatically, review } from "./work.js";
 
 // Batch mode for advanced users: finds tasks nobody is working on (including
 // ones a previous contributor handed off) and runs the agent on several of them
@@ -111,7 +111,7 @@ async function runOne(task: Task, login: string, agent: ResolvedAgent, active: S
   try {
     const ws = await begin(task, login, agent.name, log);
     const file = createWriteStream(join(LOG_DIR, `${task.owner}__${task.repo}__${task.number}.log`));
-    const run = streamAgent(agent.streamCommand(buildPrompt(task)), ws.dir, (line) => {
+    const run = streamAgent(agent.streamCommand(buildPrompt(task, await attachImages(task, ws.dir))), ws.dir, (line) => {
       file.write(`${line}\n`);
       // Live progress: the first line of each step, shortened.
       log(`  ${line.split("\n")[0].slice(0, 110)}`);
