@@ -104,8 +104,15 @@ async function runOne(task: Task, login: string, agent: ResolvedAgent, active: S
     const code = await run.done.finally(() => { active.delete(handle); file.end(); });
 
     const r = review(task, ws);
-    // Unattended: finished work becomes a PR, partial work a checkpoint, and an empty run frees the task.
-    const choice = r.hasWork ? defaultChoice(r) : "release";
+    if (!r.hasWork) {
+      // Nothing to push: free the task and say why, so the owner and the contributor both see the agent's reason.
+      const why = r.note.replace(/\s+/g, " ").replace(/@/g, "@\u200b").slice(0, 400);
+      await release(task, login, `the agent made no changes: ${why}`);
+      log(`no changes made: ${why}`);
+      return { ref, result: `No changes made, task released. Agent said: ${why.slice(0, 160)}` };
+    }
+    // Unattended: finished work becomes a PR, partial work a checkpoint.
+    const choice = defaultChoice(r);
     const done = await complete(task, ws, login, agent.name, choice, r, agent);
     log(`${done.message}${done.url ? `: ${done.url}` : ""}${code ? ` (agent exit code ${code})` : ""}`);
     return { ref, result: done.url ? `${done.message}: ${done.url}` : done.message };
