@@ -16,7 +16,6 @@ export interface AutoOptions {
   agent?: string;
   agentCmd?: string;
   model?: string;
-  effort?: string;
   yes?: boolean;
   parallel?: number;
   max?: number;
@@ -43,7 +42,7 @@ export async function auto(repoFilter: string | undefined, opts: AutoOptions): P
   for (const t of tasks) for (const w of t.warnings) console.warn(`⚠  ${t.owner}/${t.repo}#${t.number}: ${w}`);
   if (opts.dryRun) return;
 
-  const agent = resolveAgent({ agent: opts.agent, custom: opts.agentCmd, model: opts.model, effort: opts.effort });
+  const agent = resolveAgent({ agent: opts.agent, custom: opts.agentCmd, model: opts.model });
   if (!(await confirm(`\nClaim these and run ${agent.name} unattended (edits only, nothing is pushed until each run finishes)?`, opts.yes))) return;
 
   mkdirSync(LOG_DIR, { recursive: true });

@@ -17,7 +17,6 @@ export interface WorkOptions {
   agent?: string;
   agentCmd?: string;
   model?: string;
-  effort?: string;
   headless?: boolean;
   yes?: boolean;
 }
@@ -34,9 +33,8 @@ export interface Workspace {
 export interface Review {
   status: "DONE" | "PARTIAL" | "unknown";
   note: string;
-  /** Model and effort the agent reported in its handoff note, if it knew them. */
+  /** Model the agent reported in its handoff note, if it knew it. */
   model?: string;
-  effort?: string;
   /** `git status --short` output, or a commit count if everything is committed. */
   changes: string;
   hasWork: boolean;
@@ -54,7 +52,7 @@ export async function work(ref: string, opts: WorkOptions): Promise<void> {
   console.log(`\n${label}: ${task.title}\n${task.url}\nState: ${describeState(task.state)}\n`);
   await checkWorkable(task, login);
 
-  const agent = resolveAgent({ agent: opts.agent, custom: opts.agentCmd, model: opts.model, effort: opts.effort });
+  const agent = resolveAgent({ agent: opts.agent, custom: opts.agentCmd, model: opts.model });
   console.log("----- task text (this is what your agent will read) -----");
   console.log(task.body.trim() || "(empty)");
   console.log("---------------------------------------------------------");
@@ -157,7 +155,7 @@ export function buildPrompt(task: Task): string {
     "- Do not push or open pull requests. lendmyai does that.",
     `- Before you stop, finished or not, write ${HANDOFF_FILE} with:`,
     "  - First line: `STATUS: DONE` or `STATUS: PARTIAL`",
-    "  - Next two lines: `MODEL: <the exact model id you are running as>` and `EFFORT: <your reasoning effort level, or unknown>`. Write unknown rather than guess.",
+    "  - Next line: `MODEL: <the exact model id you are running as>`. Write `MODEL: unknown` rather than guess.",
     "  - What you changed and how you verified it",
     "  - If PARTIAL: what remains, so the next contributor's agent can continue",
   ].join("\n");
@@ -172,12 +170,12 @@ export function review(task: Task, ws: Workspace): Review {
     const v = new RegExp(`^${name}:[ \\t]*(.+)$`, "im").exec(rawNote)?.[1].trim().replace(/[^\w .:/@+-]/g, "").slice(0, 40);
     return v && !/^(unknown|n\/a|none)$/i.test(v) ? v : undefined;
   };
-  const note = rawNote.replace(/^(STATUS|MODEL|EFFORT):.*\n?/gim, "").trim() || "_No handoff note was written._";
+  const note = rawNote.replace(/^(STATUS|MODEL):.*\n?/gim, "").trim() || "_No handoff note was written._";
 
   const short = git(["status", "--short"], ws.dir, { quiet: true });
   const ahead = Number(git(["rev-list", "--count", `origin/${task.defaultBranch}..HEAD`], ws.dir, { quiet: true }));
   const changes = short || (ahead ? `${ahead} commit(s) ahead of ${task.defaultBranch}` : "");
-  return { status, note, model: field("MODEL"), effort: field("EFFORT"), changes, hasWork: changes !== "" };
+  return { status, note, model: field("MODEL"), changes, hasWork: changes !== "" };
 }
 
 export function defaultChoice(r: Review): Choice {
@@ -188,8 +186,8 @@ export function defaultChoice(r: Review): Choice {
 export async function complete(
   task: Task, ws: Workspace, login: string, agent: string, choice: Choice, r: Review, info: RunInfo = {},
 ): Promise<{ message: string; url?: string }> {
-  // Flags win; otherwise use what the agent said about itself in its handoff note.
-  info = { model: info.model ?? r.model, effort: info.effort ?? r.effort };
+  // Flag wins; otherwise use what the agent said about itself in its handoff note.
+  info = { model: info.model ?? r.model };
   if (choice === "release") {
     await release(task, login, "gave up");
     return { message: `Released. Local work stays in ${ws.dir}` };

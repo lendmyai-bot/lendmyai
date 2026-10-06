@@ -40,9 +40,9 @@ The first time, this signs you in to GitHub. It then opens the app in your brows
 
 You can hold one task at a time. Claims expire after 24 hours.
 
-### Model and effort tags
+### Model tag
 
-`lendmyai work` and `lendmyai auto` take `--model` and `--effort`. They are passed to the agent and recorded in the PR description, commit message and task comments, and as PR labels (`agent:claude`, `model:opus`, `effort:high`) when your account can label the repo. Without the flags, the agent is asked to report its own model and effort in its handoff note, and that is used (self-reported, so treat it as a hint).
+`lendmyai work` and `lendmyai auto` take `--model`. It is passed to the agent and recorded in the PR description, commit message and task comments, and as PR labels (`agent:claude`, `model:opus`) when your account can label the repo. Without the flags, the agent is asked to report its own model in its handoff note, and that is used (self-reported, so treat it as a hint).
 
 ### Advanced: work on several tasks at once
 

@@ -7,9 +7,9 @@ import { maintainerNotes, stateOf, type Task } from "./tasks.js";
 // only call the GitHub API, so they run in Node and in Cloudflare Workers.
 // Local git work lives in work.ts; this file never touches the filesystem.
 
-/** "claude · model opus · effort high": how a run is named in PRs and comments. */
+/** "claude · model opus": how a run is named in PRs and comments. */
 export const describeRun = (agent: string, info: RunInfo = {}) =>
-  [agent, info.model && `model ${info.model}`, info.effort && `effort ${info.effort}`].filter(Boolean).join(" · ");
+  [agent, info.model && `model ${info.model}`].filter(Boolean).join(" · ");
 
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9._-]+/g, "-").slice(0, 40);
 
@@ -255,9 +255,9 @@ export async function submitPullRequest(
   return pr;
 }
 
-/** Labels the pull request with the agent, model and effort. Best effort: only people with triage access can add labels. */
+/** Labels the pull request with the agent and model. Best effort: only people with triage access can add labels. */
 async function tagPullRequest(task: Task, pr: number, agent: string, info: RunInfo): Promise<void> {
-  const labels = [`agent:${slug(agent)}`, info.model && `model:${slug(info.model)}`, info.effort && `effort:${slug(info.effort)}`].filter(Boolean);
+  const labels = [`agent:${slug(agent)}`, info.model && `model:${slug(info.model)}`].filter(Boolean);
   try {
     await api("POST", `/repos/${upstreamOf(task)}/issues/${pr}/labels`, { labels });
   } catch (e) {

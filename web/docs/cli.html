@@ -35,14 +35,14 @@ lendmyai login | logout</code></pre>
 <tr><td><code>--max &lt;n&gt;</code></td><td>Stop after this many tasks (default 5)</td></tr>
 <tr><td><code>--dry-run</code></td><td>Only list the tasks that would be picked up</td></tr>
 <tr><td><code>--agent</code>, <code>--agent-cmd</code></td><td>Choose the AI CLI, as with <code>work</code></td></tr>
-<tr><td><code>--model</code>, <code>--effort</code></td><td>Pick the model and reasoning effort. Both are passed to the agent (<code>work</code> takes them too) and recorded on the pull request</td></tr>
+<tr><td><code>--model</code></td><td>Pick the model. It is passed to the agent (<code>work</code> takes it too) and recorded on the pull request</td></tr>
 <tr><td><code>--yes</code></td><td>Skip the confirmation</td></tr></table>
 <p>Each task runs unattended in its own checkout, with edits only and no shell approvals. When a run ends, finished work becomes a pull request, partial work is checkpointed for the next contributor, and a run that changed nothing releases the task. Output for each task is saved in <code>~/.lendmyai/logs</code>. Press Ctrl+C to stop and release the tasks still running.</p>
 <div class="note warn">Claims expire after 24 hours. Batch mode lifts the one-task-at-a-time limit, so use a number you can review.</div>
-<h2 id="tags">Model and effort tags</h2>
-<p>When a run opens a pull request, it says which agent, model and effort made the change, in the description, the commit message and the task comments. It also adds labels such as <code>agent:claude</code>, <code>model:opus</code> and <code>effort:high</code>. Labels are added only when your account may label that repository; the text is always there.</p>
-<pre><code>npx lendmyai work owner/repo#123 --model opus --effort high</code></pre>
-<p>What you set with <code>--model</code> and <code>--effort</code> is recorded. If you leave them out, the agent is asked to state its own model and effort in its handoff note, and that is recorded instead. This is self-reported, so it can be wrong; the agent writes "unknown" when it does not know, and then nothing is recorded. Gemini has no effort setting.</p>
+<h2 id="tags">Model tag</h2>
+<p>When a run opens a pull request, it says which agent and model made the change, in the description, the commit message and the task comments. It also adds labels such as <code>agent:claude</code> and <code>model:opus</code>. Labels are added only when your account may label that repository; the text is always there.</p>
+<pre><code>npx lendmyai work owner/repo#123 --model opus</code></pre>
+<p>What you set with <code>--model</code> is recorded. If you leave it out, the agent is asked to state its own model in its handoff note, and that is recorded instead. This is self-reported, so it can be wrong; the agent writes "unknown" when it does not know, and then nothing is recorded.</p>
 <div class="pager"><a href="/owners">← Add your project</a><a href="/how-it-works">How it works →</a></div>
 </main>
 </div>
