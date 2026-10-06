@@ -1,3 +1,5 @@
+<img src="web/logo.svg" alt="lendmyai logo: two hands reaching toward a spark" width="120">
+
 # lendmyai
 
 **Lend your AI to projects that need help.** Project owners post tasks, and anyone with a Claude subscription (or Codex or Gemini) points their AI at them. The AI works on the contributor's own computer with their own subscription. The owner reviews the result as a pull request.
@@ -122,4 +124,6 @@ For website sign-in during development, create a second OAuth App with the callb
 
 ## License
 
-[Functional Source License 1.1, Apache 2.0 future license](LICENSE.md). You may use, copy, modify and share lendmyai for any purpose, except offering it (or something substantially similar built from it) as a competing commercial product or service. Two years after each version is released, that version also becomes available under Apache 2.0.
+**Source-available, view only** ([LICENSE.md](LICENSE.md)). You may read the code, use the official lendmyai app and website, and change the code only to contribute back to this repository. You may not copy, modify, redistribute, host or reuse it otherwise.
+
+Versions up to commit `7628c14` and npm 0.2.0 were released under the Functional Source License 1.1 (Apache 2.0 future license) and stay under those terms.
