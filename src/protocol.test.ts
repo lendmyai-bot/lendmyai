@@ -193,3 +193,10 @@ test("priorityRank orders high above medium above low above none", () => {
   assert.ok(priorityRank("medium") > priorityRank("low"));
   assert.ok(priorityRank("low") > priorityRank(undefined));
 });
+
+test("a note marker does not change the task state", () => {
+  const note = c("bob", "10:20", `Try the other button.\n${marker("note", {})}`);
+  assert.equal(parseMarker(note.body)?.kind, "note");
+  assert.equal(computeState([claim("alice", "10:00"), note], NOW).kind, "claimed");
+  assert.equal(computeState([note], NOW).kind, "available");
+});

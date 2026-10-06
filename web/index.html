@@ -719,6 +719,11 @@ async function viewTask(o, r, n) {
         <h1>${esc(t.title)}</h1>
         <div style="height:12px"></div>
         ${failedBanner}
+        ${s.failure && !t.blocked && s.kind !== "in-review" && !signedOut() ? `<div class="panel" style="margin-bottom:16px">
+          <label for="attemptNote" style="font-weight:600">Add a short note before trying again</label>
+          <textarea id="attemptNote" rows="2" maxlength="1000" placeholder="e.g. The button should only appear for signed-in users." style="margin-top:6px"></textarea>
+          <div class="row" style="margin-top:8px;gap:10px"><button id="saveNote">Save note</button><span class="fine">The next AI that works on this task reads it first.</span></div>
+        </div>` : ""}
         ${t.warnings.map((w) => `<div class="banner warn">⚠ ${esc(w)}</div>`).join("")}
         <div class="panel"><h2>Task</h2><div class="md">${md(t.body)}</div></div>
         ${t.notes.length ? `<div class="panel"><h2>Maintainer comments</h2>${t.notes.map((nt) => `<div class="md" style="margin-bottom:10px">${md(nt)}</div>`).join("")}</div>` : ""}
@@ -739,11 +744,21 @@ async function viewTask(o, r, n) {
     forcedTasks.add(t.ref);
     render();
   });
+  document.getElementById("saveNote")?.addEventListener("click", async (e) => {
+    const text = document.getElementById("attemptNote").value.trim();
+    if (!text) return toast("Write a short note first.");
+    e.target.disabled = true;
+    try { await call("POST", `/api/tasks/${o}/${r}/${n}/note`, { text }); toast("Note saved. Run the task again."); render(); }
+    catch (err) { toast(err.message); e.target.disabled = false; }
+  });
   document.getElementById("run")?.addEventListener("click", async (e) => {
     const agent = document.getElementById("agent").value;
-    if (!confirm(`Claim ${t.ref} and run ${agent}?\n\nThis posts a claim comment on GitHub, checks out the repo in ~/.lendmyai/work and runs ${agent} headless. Nothing is pushed until you choose.`)) return;
+    if (!confirm(`Claim ${t.ref} and run ${agent}?\n\nThis posts a claim comment on GitHub, checks out the repo in ~/.lendmyai/work and runs ${agent} headless. The result is sent to the project owner automatically.`)) return;
     e.target.disabled = true; e.target.innerHTML = `<span class="spinner"></span> Starting…`;
     try {
+      // A note typed above is saved first, so this attempt reads it.
+      const pending = document.getElementById("attemptNote")?.value.trim();
+      if (pending) await call("POST", `/api/tasks/${o}/${r}/${n}/note`, { text: pending });
       const { jobId } = await call("POST", `/api/tasks/${o}/${r}/${n}/run`, { agent, force: forced });
       location.hash = `#/run/${jobId}`;
     } catch (err) {
@@ -811,10 +826,11 @@ function timeline(events, o, r) {
     release: `<b>${esc(personName(ev))}</b> released`,
     handoff: `<b>${esc(personName(ev))}</b> checkpointed to <span class="mono">${esc(ev.data.repo)}:${esc(ev.data.branch)}</span>`,
     failed: `<b>${esc(personName(ev))}</b>'s agent could not complete this task`,
+    note: `<b>${esc(personName(ev))}</b> added a note for the next attempt`,
     done: `<b>${esc(personName(ev))}</b> opened <a href="https://github.com/${esc(o)}/${esc(r)}/pull/${esc(ev.data.pr)}" target="_blank" rel="noopener">PR #${esc(ev.data.pr)}</a>`,
   })[ev.kind];
   return `<ul class="timeline">${[...events].reverse().map((ev) => {
-    const note = ev.kind === "handoff" ? ev.text.split("\n").slice(1).join("\n").trim() : ev.kind === "failed" ? ev.text.split("\n").slice(1).join("\n").trim() : "";
+    const note = ev.kind === "handoff" ? ev.text.split("\n").slice(1).join("\n").trim() : ev.kind === "failed" || ev.kind === "note" ? ev.text.split("\n").slice(1).join("\n").trim() : "";
     return `<li>${label(ev)}<div class="when">${ago(ev.at)}</div>${note ? `<div class="note md">${md(note)}</div>` : ""}</li>`;
   }).join("")}</ul>`;
 }

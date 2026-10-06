@@ -6,6 +6,7 @@ import {
   computeState,
   isTrusted,
   parseMarker,
+  stripMarker,
   priorityOf,
   priorityRank,
   type Comment,
@@ -87,6 +88,15 @@ export async function stateOf(owner: string, repo: string, comments: Comment[]):
 /** Comments from maintainers that add context to the task (markers excluded). */
 export function maintainerNotes(task: Task): string[] {
   return task.comments.filter((c) => isTrusted(c.association) && !parseMarker(c.body)).map((c) => `@${c.user}: ${c.body.trim()}`);
+}
+
+/** Notes people left for the next attempt (see postNote), oldest first. Only maintainers' notes are instructions. */
+export function attemptNotes(task: Task): { user: string; trusted: boolean; text: string }[] {
+  return task.comments
+    .filter((c) => parseMarker(c.body)?.kind === "note")
+    .map((c) => ({ user: c.user, trusted: isTrusted(c.association), text: stripMarker(c.body).replace(/^📝[^\n]*\n+/, "").trim() }))
+    .filter((n) => n.text)
+    .slice(-5);
 }
 
 export interface TaskSummary {

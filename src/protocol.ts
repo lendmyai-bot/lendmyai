@@ -35,7 +35,7 @@ const DELEGATED_ID = /^lendmyai:[a-z0-9]{6,32}$/;
 
 const TRUSTED_ASSOCIATIONS = new Set(["OWNER", "MEMBER", "COLLABORATOR"]);
 
-export type MarkerKind = "claim" | "release" | "handoff" | "done" | "failed";
+export type MarkerKind = "claim" | "release" | "handoff" | "done" | "failed" | "note";
 
 export interface ClaimData { expires: string; agent: string; force?: boolean }
 export interface HandoffData { repo: string; branch: string }
@@ -66,7 +66,7 @@ export type TaskState = (
   | { kind: "failed"; user: string; name?: string; handoff?: Handoff }
 ) & { failure?: Failure };
 
-const MARKER_RE = /<!--\s*lendmyai:(claim|release|handoff|done|failed)\s+(\{.*?\})\s*-->/s;
+const MARKER_RE = /<!--\s*lendmyai:(claim|release|handoff|done|failed|note)\s+(\{.*?\})\s*-->/s;
 
 export function marker(kind: MarkerKind, data: object): string {
   return `<!-- lendmyai:${kind} ${JSON.stringify(data)} -->`;
