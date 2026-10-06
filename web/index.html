@@ -54,6 +54,15 @@
   textarea { min-height: 84px; resize: vertical; }
   input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
   .toolbar input { flex: 1; min-width: 200px; width: auto; }
+  .toolbar select { width: auto; flex: 0 1 auto; max-width: 100%; }
+  .toolbar .check { display: inline-flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; user-select: none; white-space: nowrap; }
+  .toolbar .check:hover { background: var(--surface-2); }
+  .toolbar .check input { flex: none; width: 16px; height: 16px; min-width: 0; padding: 0; margin: 0; accent-color: var(--accent); }
+  @media (max-width: 600px) {
+    .toolbar input[type=search] { flex: 1 1 100%; }
+    .toolbar select { flex: 1 1 140px; }
+    .toolbar .check { flex: 1 1 100%; }
+  }
   button { font: inherit; font-weight: 500; border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 8px; padding: 8px 14px; cursor: pointer; white-space: nowrap; }
   button:hover:not(:disabled) { background: var(--surface-2); }
   button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
@@ -304,6 +313,16 @@ const projectHref = (fullName) => `#/project/${fullName}`;
 const repoOfRef = (ref) => ref.split("#")[0];
 
 // ---------- projects ----------
+// "recent" keeps the order the API returns (GitHub's most recently updated first),
+// so the default view is exactly what it was before the toolbar existed.
+const PROJECT_SORTS = [
+  ["recent", "Recently updated"],
+  ["tasks", "Most open tasks"],
+  ["stars", "Most stars"],
+  ["newest", "Newest"],
+  ["name", "Name A-Z"],
+];
+
 async function viewProjects() {
   main.innerHTML = `
     ${signedOut() ? heroHtml(true) : ""}
@@ -315,12 +334,100 @@ async function viewProjects() {
   const list = document.getElementById("list");
   try {
     const projects = await call("GET", "/api/projects");
-    list.innerHTML = projects.length
-      ? `<div class="grid">${projects.map(projectCard).join("")}</div>`
-      : `<div class="panel empty">No projects yet. <a href="#/publish">Add the first one.</a></div>`;
+    if (projects.length) mountProjectBrowser(list, projects);
+    else list.innerHTML = `<div class="panel empty">No projects yet. <a href="#/publish">Add the first one.</a></div>`;
   } catch (e) {
     list.innerHTML = errorBox(e);
   }
+}
+
+/** Applies search, language, "open tasks only" and sort to the loaded list. Returns a new array. */
+function filterProjects(projects, f) {
+  const terms = f.q.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const time = (iso) => Date.parse(iso) || 0;
+  const order = {
+    recent: () => 0,
+    tasks: (a, b) => b.p.openTasks - a.p.openTasks,
+    stars: (a, b) => b.p.stars - a.p.stars,
+    newest: (a, b) => time(b.p.createdAt) - time(a.p.createdAt),
+    name: (a, b) => a.p.fullName.localeCompare(b.p.fullName, undefined, { sensitivity: "base" }),
+  }[f.sort] || (() => 0);
+  return projects
+    .map((p, i) => ({ p, i }))
+    .filter(({ p }) => {
+      if (f.lang && p.language !== f.lang) return false;
+      if (f.open && !(p.openTasks > 0)) return false;
+      const hay = `${p.fullName} ${p.description}`.toLowerCase();
+      return terms.every((t) => hay.includes(t));
+    })
+    .sort((a, b) => order(a, b) || a.i - b.i)
+    .map(({ p }) => p);
+}
+
+/** Toolbar + grid for the Projects page. Only the grid is redrawn while typing, so the search box keeps focus. */
+function mountProjectBrowser(box, projects) {
+  const langs = [...new Set(projects.map((p) => p.language).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  const f = {
+    q: store.get("projects.q"),
+    lang: store.get("projects.lang"),
+    open: store.get("projects.open") === "1",
+    sort: store.get("projects.sort"),
+  };
+  // Saved choices can be stale (a language that is no longer listed, an unknown sort).
+  if (!langs.includes(f.lang)) f.lang = "";
+  if (!PROJECT_SORTS.some(([k]) => k === f.sort)) f.sort = "recent";
+
+  box.innerHTML = `
+    <div class="toolbar" role="search">
+      <input type="search" id="p-q" placeholder="Search projects…" aria-label="Search projects" autocomplete="off" value="${esc(f.q)}">
+      <select id="p-lang" aria-label="Language">
+        <option value="">All languages</option>
+        ${langs.map((l) => `<option value="${esc(l)}"${l === f.lang ? " selected" : ""}>${esc(l)}</option>`).join("")}
+      </select>
+      <select id="p-sort" aria-label="Sort by">
+        ${PROJECT_SORTS.map(([k, label]) => `<option value="${k}"${k === f.sort ? " selected" : ""}>${label}</option>`).join("")}
+      </select>
+      <label class="check"><input type="checkbox" id="p-open"${f.open ? " checked" : ""}> Only with open tasks</label>
+    </div>
+    <p class="fine" id="p-count" aria-live="polite" style="margin:-8px 0 12px"></p>
+    <div id="p-grid"></div>`;
+
+  const qEl = box.querySelector("#p-q");
+  const langEl = box.querySelector("#p-lang");
+  const sortEl = box.querySelector("#p-sort");
+  const openEl = box.querySelector("#p-open");
+  const countEl = box.querySelector("#p-count");
+  const grid = box.querySelector("#p-grid");
+
+  const save = () => {
+    store.set("projects.q", f.q);
+    store.set("projects.lang", f.lang);
+    store.set("projects.open", f.open ? "1" : "");
+    store.set("projects.sort", f.sort);
+  };
+
+  const apply = () => {
+    const shown = filterProjects(projects, f);
+    countEl.textContent = shown.length === projects.length
+      ? `${projects.length} project${projects.length === 1 ? "" : "s"}`
+      : `Showing ${shown.length} of ${projects.length} project${projects.length === 1 ? "" : "s"}`;
+    grid.innerHTML = shown.length
+      ? `<div class="grid">${shown.map(projectCard).join("")}</div>`
+      : `<div class="panel empty">No projects match your filters.<br>Try different search words, or clear the filters to see everything.<div style="margin-top:12px"><button id="p-clear">Clear filters</button></div></div>`;
+  };
+
+  qEl.addEventListener("input", () => { f.q = qEl.value; save(); apply(); });
+  langEl.addEventListener("change", () => { f.lang = langEl.value; save(); apply(); });
+  sortEl.addEventListener("change", () => { f.sort = sortEl.value; save(); apply(); });
+  openEl.addEventListener("change", () => { f.open = openEl.checked; save(); apply(); });
+  grid.addEventListener("click", (e) => {
+    if (!e.target.closest("#p-clear")) return;
+    f.q = ""; f.lang = ""; f.open = false;
+    qEl.value = ""; langEl.value = ""; openEl.checked = false;
+    save(); apply();
+  });
+
+  apply();
 }
 
 function projectCard(p) {
