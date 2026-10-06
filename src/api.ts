@@ -59,6 +59,13 @@ async function cloudSession(task: Task) {
   return { head: s.repo, branch, claudeUrl: claudeCodeUrl(buildCloudPrompt(task, s.repo, branch), s.repo) };
 }
 
+/** GitHub timestamps are already ISO 8601 strings; normalise them and fall back to "" like the other optional fields. */
+function isoDate(value: unknown): string {
+  if (typeof value !== "string" || !value) return "";
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? "" : d.toISOString();
+}
+
 // A project is a public repo with the lendmyai topic; its tasks are its open
 // issues labeled agent-task.
 function projectSummary(r: any, openTasks: number) {
@@ -70,9 +77,8 @@ function projectSummary(r: any, openTasks: number) {
     avatar: r.owner?.avatar_url ?? "",
     url: r.html_url,
     openTasks,
-    // ISO timestamps; the Projects page uses them for its "Newest" sort.
-    createdAt: r.created_at ?? "",
-    updatedAt: r.updated_at ?? "",
+    updatedAt: isoDate(r.updated_at),
+    createdAt: isoDate(r.created_at),
   };
 }
 
