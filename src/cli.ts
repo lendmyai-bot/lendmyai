@@ -27,6 +27,7 @@ Contributors
       --model <name>                  Model to use (passed to the agent and recorded on the PR as a tag)
       --headless                      Run unattended (edits only, no shell approval prompts)
       --yes                           Skip confirmations
+      --force                         Work on it even if it's already claimed or in review
   lendmyai auto [owner/repo]        Find open tasks and work on several at once, unattended
       --parallel <n>                  Tasks to work on at the same time (default 2, max 5)
       --max <n>                       Stop after this many tasks (default 5)
@@ -51,6 +52,7 @@ async function main(): Promise<void> {
       model: { type: "string" },
       headless: { type: "boolean" },
       yes: { type: "boolean", short: "y" },
+      force: { type: "boolean" },
       port: { type: "string", short: "p" },
       parallel: { type: "string" },
       max: { type: "string" },
@@ -87,7 +89,7 @@ async function main(): Promise<void> {
     }
     case "work":
       if (!arg) throw new Error("Usage: lendmyai work <owner/repo#123>");
-      return work(arg, { agent: values.agent, agentCmd: values["agent-cmd"], model: values.model, headless: values.headless, yes: values.yes });
+      return work(arg, { agent: values.agent, agentCmd: values["agent-cmd"], model: values.model, headless: values.headless, yes: values.yes, force: values.force });
     case "auto":
       return auto(arg, {
         agent: values.agent,

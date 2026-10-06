@@ -10,6 +10,7 @@ function c(user: string, at: string, body: string, association = "NONE"): Commen
   return { id: ++id, user, association, createdAt: `2026-10-05T${at}:00Z`, body };
 }
 const claim = (user: string, at: string, expires = LATER) => c(user, at, marker("claim", { expires, agent: "claude" }));
+const forceClaim = (user: string, at: string, expires = LATER) => c(user, at, marker("claim", { expires, agent: "claude", force: true }));
 
 test("no markers means available", () => {
   assert.equal(computeState([c("bob", "10:00", "looks good")], NOW).kind, "available");
@@ -18,6 +19,26 @@ test("no markers means available", () => {
 test("earliest claim wins a race", () => {
   const s = computeState([claim("bob", "10:01"), claim("alice", "10:00")], NOW);
   assert.equal(s.kind === "claimed" && s.user, "alice");
+});
+
+test("a forced claim takes over a task someone else is already working on", () => {
+  const s = computeState([claim("alice", "10:00"), forceClaim("bob", "10:01")], NOW);
+  assert.equal(s.kind === "claimed" && s.user, "bob");
+  // the takeover restarts the claim clock, it doesn't inherit alice's start time
+  assert.equal(s.kind === "claimed" && s.since, "2026-10-05T10:01:00Z");
+});
+
+test("a forced claim can take over a task that's already in review", () => {
+  const comments = [claim("alice", "10:00"), c("alice", "10:05", marker("done", { pr: 7 })), forceClaim("bob", "10:10")];
+  const s = computeState(comments, NOW, () => "open");
+  assert.equal(s.kind === "claimed" && s.user, "bob");
+});
+
+test("without force, a live claim or an open PR still blocks a new claim", () => {
+  const s = computeState([claim("alice", "10:00"), claim("bob", "10:01")], NOW);
+  assert.equal(s.kind === "claimed" && s.user, "alice");
+  const comments = [claim("alice", "10:00"), c("alice", "10:05", marker("done", { pr: 7 })), claim("bob", "10:10")];
+  assert.equal(computeState(comments, NOW, () => "open").kind, "in-review");
 });
 
 test("expired claim makes task available and lets others claim", () => {

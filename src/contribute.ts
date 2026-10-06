@@ -34,13 +34,16 @@ const upstreamOf = (task: Task) => `${task.owner}/${task.repo}`;
 /**
  * Throws if `login` may not start (or resume) this task. `allowMultiple` lifts the
  * one-task-at-a-time limit, for batch runs that choose how many tasks to hold.
+ * `force` lifts the one-agent-at-a-time limit instead: it lets this contributor
+ * start on a task someone else already claimed or opened a PR for, so a single
+ * stalled or slow agent can't freeze a task for the full claim period.
  */
-export async function checkWorkable(task: Task, whoArg: WhoArg, opts: { allowMultiple?: boolean } = {}): Promise<void> {
+export async function checkWorkable(task: Task, whoArg: WhoArg, opts: { allowMultiple?: boolean; force?: boolean } = {}): Promise<void> {
   const who = norm(whoArg);
   if (task.blocked) throw new Error(task.blocked);
   const s = task.state;
-  if (s.kind === "in-review") throw new Error(`Task is already in review (PR #${s.pr}).`);
-  if (s.kind === "claimed" && s.user !== who.id) throw new Error(`Someone else is working on this task until ${s.expires}.`);
+  if (s.kind === "in-review" && !opts.force) throw new Error(`Task is already in review (PR #${s.pr}). You can still work on it anyway.`);
+  if (s.kind === "claimed" && s.user !== who.id && !opts.force) throw new Error(`Someone else is working on this task until ${s.expires}. You can still work on it anyway.`);
   if (s.kind !== "claimed" && !opts.allowMultiple) await ensureNoOtherClaim(who, `${upstreamOf(task)}#${task.number}`);
 }
 
@@ -67,13 +70,21 @@ async function ensureNoOtherClaim(who: Who, current: string): Promise<void> {
   }
 }
 
-/** Posts a claim comment; claiming again as the current holder renews it. */
-export async function claim(task: Task, whoArg: WhoArg, agent: string, repo?: string): Promise<void> {
+/**
+ * Posts a claim comment; claiming again as the current holder renews it.
+ * `force` takes the task over even if it's already claimed or in review.
+ */
+export async function claim(task: Task, whoArg: WhoArg, agent: string, repo?: string, opts: { force?: boolean } = {}): Promise<void> {
   const who = norm(whoArg);
   const expires = new Date(Date.now() + CLAIM_HOURS * 3600_000).toISOString();
+  const s = task.state;
+  const was = s.kind === "in-review" ? `in review (PR #${s.pr})` : s.kind === "claimed" && s.user !== who.id ? `claimed by ${mention({ id: s.user, name: s.name })}` : undefined;
+  const intro = opts.force && was
+    ? `🤖 ${mention(who)} is working on this too, with **${agent}** (claim expires ${expires}). It was already ${was}.`
+    : `🤖 ${mention(who)} is working on this with **${agent}** (claim expires ${expires}).`;
   const id = await postComment(
     task.owner, task.repo, task.number,
-    `🤖 ${mention(who)} is working on this with **${agent}** (claim expires ${expires}).\n${marker("claim", { expires, agent, ...(repo ? { repo } : {}), ...actingFor(who) })}`,
+    `${intro}\n${marker("claim", { expires, agent, ...(repo ? { repo } : {}), ...(opts.force ? { force: true } : {}), ...actingFor(who) })}`,
   );
   // Re-read after posting: if two people claimed at once, the earlier comment wins.
   const st = await stateOf(task.owner, task.repo, await getComments(task.owner, task.repo, task.number));

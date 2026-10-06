@@ -1,7 +1,8 @@
 // Task state lives entirely in GitHub issue comments. Each state change is a
 // comment carrying a hidden marker, e.g. <!-- lendmyai:claim {...} -->.
 // State is derived by replaying marker comments in chronological order, so
-// concurrent claims resolve deterministically: the earliest valid claim wins.
+// concurrent claims resolve deterministically: the earliest valid claim wins,
+// unless a later claim is marked `force`, which takes the task over anyway.
 
 export const TASK_LABEL = "agent-task";
 export const REPO_TOPIC = "lendmyai";
@@ -19,7 +20,7 @@ const TRUSTED_ASSOCIATIONS = new Set(["OWNER", "MEMBER", "COLLABORATOR"]);
 
 export type MarkerKind = "claim" | "release" | "handoff" | "done" | "failed";
 
-export interface ClaimData { expires: string; agent: string }
+export interface ClaimData { expires: string; agent: string; force?: boolean }
 export interface HandoffData { repo: string; branch: string }
 export interface DoneData { pr: number }
 
@@ -108,9 +109,13 @@ export function computeState(
       case "claim": {
         const expires = String(m.data.expires ?? "");
         if (Number.isNaN(Date.parse(expires))) break;
-        // A claim only counts if nobody else holds a live claim at that moment.
-        if (state.kind === "in-review" && prState(state.pr) !== "closed") break;
-        if (claimLive && holder !== actor) break;
+        const force = m.data.force === true;
+        // A claim only counts if nobody else holds a live claim at that moment,
+        // unless it's a forced takeover: an agent choosing to work on a task
+        // that's already in progress or in review, so one stalled claim can't
+        // freeze a task for the full 24 hours.
+        if (state.kind === "in-review" && prState(state.pr) !== "closed" && !force) break;
+        if (claimLive && holder !== actor && !force) break;
         // A renewal by the holder keeps the original start time.
         const since: string = state.kind === "claimed" && holder === actor && claimLive ? state.since : c.createdAt;
         const repo = typeof m.data.repo === "string" ? m.data.repo : undefined;

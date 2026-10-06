@@ -49,7 +49,14 @@ export const TOOLS = [
   {
     name: "start_task",
     description: "Reserve a task for this person (24 hours) and get its instructions and the project's files. Call this first.",
-    inputSchema: { type: "object", properties: { task: taskArg }, required: ["task"] },
+    inputSchema: {
+      type: "object",
+      properties: {
+        task: taskArg,
+        force: { type: "boolean", description: "Work on it even though someone else already claimed it or opened a PR for it. Only set this if the person explicitly asked to work on it anyway." },
+      },
+      required: ["task"],
+    },
   },
   {
     name: "list_files",
@@ -299,14 +306,15 @@ const tools: Record<string, (args: any, ctx: Ctx) => Promise<string>> = {
 
   async start_task(args, ctx) {
     const task = await getTask(args.task);
+    const force = args.force === true;
     try {
-      await checkWorkable(task, ctx.who);
+      await checkWorkable(task, ctx.who, { force });
     } catch (e) {
       throw new ToolError((e as Error).message);
     }
     const head = await headRepo(task);
     const branch = await prepareBranch(task, head, ctx.who.id, { fresh: true });
-    await claim(task, ctx.who, AGENT, head);
+    await claim(task, ctx.who, AGENT, head, { force });
     const { files, truncated } = await listFiles(head, branch);
     const notes = maintainerNotes(task);
     const h = task.state.handoff;

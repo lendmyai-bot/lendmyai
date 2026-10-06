@@ -144,14 +144,15 @@ export const sharedRoutes: Route[] = [
 
   // ---------- lending your AI through Claude Code in the cloud ----------
 
-  route("POST", "/api/tasks/:owner/:repo/:n/start", async ([o, r, n]) => {
+  route("POST", "/api/tasks/:owner/:repo/:n/start", async ([o, r, n], body) => {
     const [login, task] = await Promise.all([me(), loadTask(o, r, Number(n))]);
-    await checkWorkable(task, login).catch((e) => {
+    const force = !!body?.force;
+    await checkWorkable(task, login, { force }).catch((e) => {
       throw new HttpError(400, e.message);
     });
     const head = await headRepo(task);
     const branch = await prepareBranch(task, head, login);
-    await claim(task, login, CLOUD_AGENT, head);
+    await claim(task, login, CLOUD_AGENT, head, { force });
     return { head, branch, claudeUrl: claudeCodeUrl(buildCloudPrompt(task, head, branch), head) };
   }),
 

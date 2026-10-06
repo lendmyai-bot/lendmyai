@@ -199,6 +199,8 @@
 const main = document.getElementById("main");
 let me = { login: "", agents: [] };
 let pollTimer = null;
+// Tasks the viewer chose to work on anyway, even though someone else already claimed them or opened a PR.
+const forcedTasks = new Set();
 
 // ---------- helpers ----------
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -528,6 +530,11 @@ async function viewTask(o, r, n) {
   const mine = s.kind !== "available" && s.user === me.login;
   const hosted = me.mode === "hosted";
   const command = hosted ? "npx lendmyai" : `npx lendmyai work ${t.ref}`;
+  // Someone chose to work on this anyway, even though it's already claimed or in review.
+  const forced = forcedTasks.has(t.ref);
+  const takenFrom = s.kind === "in-review" ? `in review (PR #${s.pr})` : s.kind === "claimed" && !mine ? `claimed by ${esc(personName(s))} until ${until(s.expires)}` : "";
+  const forceBtn = `<button class="linkish" id="workAnyway">Work on it anyway</button>`;
+  const forcedBanner = forced && takenFrom ? `<div class="banner warn">Working on this anyway. It was already ${takenFrom}.</div>` : "";
 
   let action;
   // Advanced path: run the agent on your own computer with the local app.
@@ -541,7 +548,7 @@ async function viewTask(o, r, n) {
       </ol>
     </details>`;
 
-  if (hosted && !t.blocked && s.kind !== "in-review" && (s.kind !== "claimed" || mine)) {
+  if (hosted && !t.blocked && (forced || s.kind !== "in-review") && (forced || s.kind !== "claimed" || mine)) {
     if (t.cloud) {
       // The signed-in user is working on this with Claude in the cloud.
       action = `
@@ -564,6 +571,7 @@ async function viewTask(o, r, n) {
       // Main path: one button. Claude chat + the lendmyai connector, no GitHub account needed.
       // First-time users get the one-click "add connector" link from Claude itself.
       action = `
+        ${forcedBanner}
         ${s.handoff ? `<div class="banner warn">Claude will continue from ${esc(personName(s.handoff))}'s earlier work.</div>` : ""}
         <div id="doTask">${doTaskHtml(t)}</div>
         <details class="advanced">
@@ -579,12 +587,13 @@ async function viewTask(o, r, n) {
   } else if (t.blocked) {
     action = `<div class="banner danger">${esc(t.blocked)}</div>`;
   } else if (s.kind === "in-review") {
-    action = `<div class="banner ok">In review: <a href="https://github.com/${esc(o)}/${esc(r)}/pull/${esc(s.pr)}" target="_blank" rel="noopener">PR #${esc(s.pr)}</a> by ${esc(personName(s))}</div>`;
+    action = `<div class="banner ok">In review: <a href="https://github.com/${esc(o)}/${esc(r)}/pull/${esc(s.pr)}" target="_blank" rel="noopener">PR #${esc(s.pr)}</a> by ${esc(personName(s))}</div>${forceBtn}`;
   } else if (s.kind === "claimed" && !mine) {
-    action = `<div class="banner warn">${esc(personName(s))} is working on this with ${esc(s.agent)} (${until(s.expires)}).</div>`;
+    action = `<div class="banner warn">${esc(personName(s))} is working on this with ${esc(s.agent)} (${until(s.expires)}).</div>${forceBtn}`;
   } else {
     action = `
       <div class="stack">
+        ${forcedBanner}
         ${mine ? `<div class="banner info">You hold this claim (${until(s.expires)}). Running again continues your work.</div>` : ""}
         ${s.handoff ? `<div class="banner warn">Your agent will continue from @${esc(s.handoff.user)}'s checkpoint.</div>` : ""}
         ${me.agents.length ? `
@@ -628,12 +637,17 @@ async function viewTask(o, r, n) {
   document.getElementById("copy")?.addEventListener("click", async () => {
     try { await navigator.clipboard.writeText(command); toast("Copied"); } catch { toast(command); }
   });
+  document.getElementById("workAnyway")?.addEventListener("click", () => {
+    if (!confirm(`${t.ref} is already ${takenFrom}. Work on it anyway? This takes the claim over instead of waiting.`)) return;
+    forcedTasks.add(t.ref);
+    render();
+  });
   document.getElementById("run")?.addEventListener("click", async (e) => {
     const agent = document.getElementById("agent").value;
     if (!confirm(`Claim ${t.ref} and run ${agent}?\n\nThis posts a claim comment on GitHub, checks out the repo in ~/.lendmyai/work and runs ${agent} headless. Nothing is pushed until you choose.`)) return;
     e.target.disabled = true; e.target.innerHTML = `<span class="spinner"></span> Starting…`;
     try {
-      const { jobId } = await call("POST", `/api/tasks/${o}/${r}/${n}/run`, { agent });
+      const { jobId } = await call("POST", `/api/tasks/${o}/${r}/${n}/run`, { agent, force: forced });
       location.hash = `#/run/${jobId}`;
     } catch (err) {
       toast(err.message); e.target.disabled = false; e.target.textContent = "Claim & run agent";
@@ -647,7 +661,7 @@ async function viewTask(o, r, n) {
 
   document.getElementById("start")?.addEventListener("click", async (e) => {
     busy(e.target, "Getting things ready…");
-    try { await call("POST", `${taskApi}/start`); render(); }
+    try { await call("POST", `${taskApi}/start`, { force: forced }); render(); }
     catch (err) { toast(err.message); idle(e.target); }
   });
 

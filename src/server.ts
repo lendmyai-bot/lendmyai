@@ -60,7 +60,8 @@ const localRoutes: Route[] = [
     const ref = refOf(o, r, n);
     if (activeJob(ref)) throw new HttpError(409, "An agent is already running on this task.");
     const [login, task] = await Promise.all([me(), loadTask(o, r, Number(n))]);
-    await checkWorkable(task, login).catch((e) => {
+    const force = !!body?.force;
+    await checkWorkable(task, login, { force }).catch((e) => {
       throw new HttpError(400, e.message);
     });
     const agent = resolveAgent({ agent: body?.agent || undefined });
@@ -70,7 +71,7 @@ const localRoutes: Route[] = [
     const log = (line: string) => job.log.push(line);
 
     (async () => {
-      const ws = await begin(task, login, agent.name, log);
+      const ws = await begin(task, login, agent.name, log, { force });
       job.ctx = { task, ws, login };
       log(`Workspace: ${ws.dir} (branch ${ws.branch})`);
       log(`Starting ${agent.name} (headless)…`);

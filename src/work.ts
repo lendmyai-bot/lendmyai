@@ -19,6 +19,8 @@ export interface WorkOptions {
   model?: string;
   headless?: boolean;
   yes?: boolean;
+  /** Work on the task even if someone else already claimed it or opened a PR for it. */
+  force?: boolean;
 }
 
 export type Choice = "pr" | "checkpoint" | "keep" | "release" | "failed";
@@ -50,17 +52,20 @@ export async function work(ref: string, opts: WorkOptions): Promise<void> {
   const label = `${owner}/${repo}#${number}`;
 
   console.log(`\n${label}: ${task.title}\n${task.url}\nState: ${describeState(task.state)}\n`);
-  await checkWorkable(task, login);
+  await checkWorkable(task, login, { force: opts.force });
 
   const agent = resolveAgent({ agent: opts.agent, custom: opts.agentCmd, model: opts.model });
   console.log("----- task text (this is what your agent will read) -----");
   console.log(task.body.trim() || "(empty)");
   console.log("---------------------------------------------------------");
   for (const w of task.warnings) console.warn(`⚠  ${w}`);
+  if (opts.force && (task.state.kind === "in-review" || (task.state.kind === "claimed" && task.state.user !== login))) {
+    console.warn(`⚠  Working on this anyway, even though it's already ${describeState(task.state)}.`);
+  }
   const mode = opts.headless ? "headless" : "interactive";
   if (!(await confirm(`Claim ${label} and start ${agent.name} (${mode})?`, opts.yes))) return;
 
-  const ws = await begin(task, login, agent.name);
+  const ws = await begin(task, login, agent.name, undefined, { force: opts.force });
   console.log(`\nWorkspace: ${ws.dir} (branch ${ws.branch})\nStarting ${agent.name}…\n`);
   const code = runAgent(agent.command(buildPrompt(task), !!opts.headless), ws.dir);
   console.log(`\n${agent.name} exited with code ${code}.`);
@@ -80,8 +85,10 @@ export async function work(ref: string, opts: WorkOptions): Promise<void> {
 }
 
 /** Claims the task and prepares a local checkout for the agent. */
-export async function begin(task: Task, login: string, agent: string, log: Log = console.log): Promise<Workspace> {
-  await claim(task, login, agent);
+export async function begin(
+  task: Task, login: string, agent: string, log: Log = console.log, opts: { force?: boolean } = {},
+): Promise<Workspace> {
+  await claim(task, login, agent, undefined, opts);
   log(`✓ Claimed for ${CLAIM_HOURS}h.`);
   try {
     return await prepareWorkspace(task, login, log);
