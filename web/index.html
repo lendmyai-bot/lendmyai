@@ -969,7 +969,8 @@ async function viewRun(id) {
     shown = key;
     const after = document.getElementById("after");
     if (job.status === "error") after.innerHTML = `<div style="margin-top:16px">${errorBox(job.error)}</div>`;
-    else if (job.status === "review" || job.status === "completing") after.innerHTML = reviewPanel(job);
+    else if (job.status === "completing") after.innerHTML = `<div class="banner info" style="margin-top:16px"><span class="spinner"></span>&nbsp; Sending the result to the project owner…</div>`;
+    else if (job.status === "review") after.innerHTML = `${job.error ? `<div style="margin-top:16px">${errorBox("Couldn't send the result automatically: " + job.error)}</div>` : ""}${reviewPanel(job)}`;
     else if (job.status === "done") after.innerHTML = `<div class="panel" style="margin-top:16px"><div class="banner ok" style="margin:0">✓ ${esc(job.result.message)}${job.result.url ? ` · <a href="${esc(job.result.url)}" target="_blank" rel="noopener">${esc(job.result.url)}</a>` : ""}</div></div>`;
     else after.innerHTML = "";
     after.querySelectorAll("[data-choice]").forEach((b) => b.addEventListener("click", () => finish(b.dataset.choice)));

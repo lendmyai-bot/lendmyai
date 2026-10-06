@@ -8,7 +8,7 @@ import { loadTask, type Task } from "./tasks.js";
 import { checkWorkable } from "./contribute.js";
 import { pickTasks, startTasks, type AutoRun, type Outcome as AutoOutcome } from "./auto.js";
 import { findPrs, mergePr, reviewPrs, type Outcome } from "./review.js";
-import { begin, buildPrompt, complete, defaultChoice, review, type Choice, type Review, type Workspace } from "./work.js";
+import { begin, buildPrompt, complete, defaultChoice, finishAutomatically, review, type Choice, type Review, type Workspace } from "./work.js";
 
 // Local app: the shared website API plus agent runs on this computer. It binds
 // to 127.0.0.1 only and rejects requests whose Host or Origin is not this
@@ -97,7 +97,16 @@ const localRoutes: Route[] = [
       log(`${agent.name} exited with code ${code}.`);
       job.review = review(task, ws);
       job.defaultChoice = defaultChoice(job.review);
-      job.status = "review";
+      // Nobody has to decide: the agent's verdict does. If posting fails the run stays open so the choice can be made by hand.
+      job.status = "completing";
+      try {
+        job.result = await finishAutomatically(task, ws, login, job.agent, job.review, agent);
+        log(`✓ ${job.result.message}${job.result.url ? `: ${job.result.url}` : ""}`);
+        job.status = "done";
+      } catch (e) {
+        job.error = e instanceof Error ? e.message : String(e);
+        job.status = "review";
+      }
     })().catch((e) => {
       job.status = "error";
       job.error = e instanceof Error ? e.message : String(e);

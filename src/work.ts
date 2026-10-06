@@ -199,6 +199,24 @@ export function defaultChoice(r: Review): Choice {
   return r.status === "FAILED" ? "failed" : !r.hasWork ? "keep" : r.status === "DONE" ? "pr" : "checkpoint";
 }
 
+/**
+ * Finishes an unattended run without asking anyone: the agent's own verdict decides.
+ * FAILED marks the task failed with its explanation, no changes releases the task with
+ * the reason, finished work becomes a pull request, partial work a checkpoint.
+ */
+export async function finishAutomatically(
+  task: Task, ws: Workspace, login: string, agent: string, r: Review, info: RunInfo = {},
+): Promise<{ message: string; url?: string }> {
+  if (r.status === "FAILED") return complete(task, ws, login, agent, "failed", r, info);
+  if (!r.hasWork) {
+    // Nothing to push: free the task and say why, so the owner and the contributor both see the agent's reason.
+    const why = r.note.replace(/\s+/g, " ").replace(/@/g, "@\u200b").slice(0, 400);
+    await release(task, login, `the agent made no changes: ${why}`);
+    return { message: `No changes made, task released. Agent said: ${why.slice(0, 160)}` };
+  }
+  return complete(task, ws, login, agent, defaultChoice(r), r, info);
+}
+
 /** Finishes a run: opens the pull request, pushes a checkpoint, keeps the claim, or releases it. */
 export async function complete(
   task: Task, ws: Workspace, login: string, agent: string, choice: Choice, r: Review, info: RunInfo = {},

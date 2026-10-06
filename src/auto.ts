@@ -6,7 +6,7 @@ import { checkWorkable, release } from "./contribute.js";
 import { me } from "./github.js";
 import { listTasks, loadTask, type Task } from "./tasks.js";
 import { confirmStrict as confirm, describeState } from "./ui.js";
-import { begin, buildPrompt, complete, defaultChoice, review } from "./work.js";
+import { begin, buildPrompt, finishAutomatically, review } from "./work.js";
 
 // Batch mode for advanced users: finds tasks nobody is working on (including
 // ones a previous contributor handed off) and runs the agent on several of them
@@ -122,21 +122,7 @@ async function runOne(task: Task, login: string, agent: ResolvedAgent, active: S
     const code = await run.done.finally(() => { active.delete(handle); file.end(); });
 
     const r = review(task, ws);
-    if (r.status === "FAILED") {
-      const done = await complete(task, ws, login, agent.name, "failed", r, agent);
-      log(`failed: ${r.note.replace(/\s+/g, " ").slice(0, 160)}`);
-      return { ref, result: `Marked failed. Agent said: ${r.note.replace(/\s+/g, " ").slice(0, 160)}` };
-    }
-    if (!r.hasWork) {
-      // Nothing to push: free the task and say why, so the owner and the contributor both see the agent's reason.
-      const why = r.note.replace(/\s+/g, " ").replace(/@/g, "@\u200b").slice(0, 400);
-      await release(task, login, `the agent made no changes: ${why}`);
-      log(`no changes made: ${why}`);
-      return { ref, result: `No changes made, task released. Agent said: ${why.slice(0, 160)}` };
-    }
-    // Unattended: finished work becomes a PR, partial work a checkpoint.
-    const choice = defaultChoice(r);
-    const done = await complete(task, ws, login, agent.name, choice, r, agent);
+    const done = await finishAutomatically(task, ws, login, agent.name, r, agent);
     log(`${done.message}${done.url ? `: ${done.url}` : ""}${code ? ` (agent exit code ${code})` : ""}`);
     return { ref, result: done.url ? `${done.message}: ${done.url}` : done.message };
   } catch (e) {
