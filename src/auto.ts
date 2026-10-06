@@ -5,7 +5,7 @@ import { resolveAgent, streamAgent, type ResolvedAgent } from "./agents.js";
 import { checkWorkable, release } from "./contribute.js";
 import { me } from "./github.js";
 import { listTasks, loadTask, type Task } from "./tasks.js";
-import { confirm, describeState } from "./ui.js";
+import { confirmStrict as confirm, describeState } from "./ui.js";
 import { begin, buildPrompt, complete, defaultChoice, review } from "./work.js";
 
 // Batch mode for advanced users: finds tasks nobody is working on (including

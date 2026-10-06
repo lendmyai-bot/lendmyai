@@ -16,6 +16,13 @@ export async function confirm(question: string, yes = false): Promise<boolean> {
   return (await ask(`${question} [Y/n] `, "y")).startsWith("y");
 }
 
+/** Like confirm, but without a terminal the answer is no: batch commands post to GitHub, so they need a person or --yes. */
+export async function confirmStrict(question: string, yes = false): Promise<boolean> {
+  if (yes) return true;
+  if (!process.stdin.isTTY) throw new Error("This asks for confirmation. Run it in a terminal, or add --yes.");
+  return confirm(question);
+}
+
 export function describeState(s: TaskState): string {
   const resume = s.handoff ? ` (resumable from @${s.handoff.user}'s ${s.handoff.repo}:${s.handoff.branch})` : "";
   switch (s.kind) {

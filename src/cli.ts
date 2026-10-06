@@ -9,6 +9,7 @@ import { listTasks, loadTask, stateOf } from "./tasks.js";
 import { serve } from "./server.js";
 import { describeState } from "./ui.js";
 import { auto } from "./auto.js";
+import { reviewAll } from "./review.js";
 import { work } from "./work.js";
 
 const HELP = `lendmyai: lend your AI to open GitHub tasks.
@@ -34,6 +35,8 @@ Contributors
   lendmyai release <owner/repo#123> Give up your claim (maintainers can release any claim)
 
 Maintainers
+  lendmyai review [owner/repo]      Review every pull request in review and fix merge conflicts; lists the ones ready to merge
+      (also takes --agent, --agent-cmd, --model, --parallel and --yes)
   lendmyai init <owner/repo>        Create the "${TASK_LABEL}" label and list the repo for discovery
   Then label any issue "${TASK_LABEL}" to publish it as a task.
 
@@ -93,6 +96,14 @@ async function main(): Promise<void> {
         parallel: values.parallel ? Number(values.parallel) : undefined,
         max: values.max ? Number(values.max) : undefined,
         dryRun: values["dry-run"],
+      });
+    case "review":
+      return reviewAll(arg, {
+        agent: values.agent,
+        agentCmd: values["agent-cmd"],
+        model: values.model,
+        yes: values.yes,
+        parallel: values.parallel ? Number(values.parallel) : undefined,
       });
     case "release":
       if (!arg) throw new Error("Usage: lendmyai release <owner/repo#123>");
