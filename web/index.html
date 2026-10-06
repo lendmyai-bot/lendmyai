@@ -166,6 +166,66 @@
   .hero p { color: var(--muted); font-size: 17px; margin: 0 0 24px; }
   .hero .fine { font-size: 13px; margin-top: 12px; }
   button.big { font-size: 16px; padding: 12px 22px; }
+
+  /* ---------- landing page ---------- */
+  .lm-hero { text-align: center; max-width: 860px; margin: 40px auto 24px; position: relative; }
+  .lm-hero::before { content: ""; position: absolute; inset: -60px -10% auto -10%; height: 340px; z-index: -1; background: radial-gradient(60% 70% at 50% 0%, var(--accent-soft), transparent 70%); }
+  .lm-eyebrow { display: inline-block; font-size: 13px; font-weight: 600; padding: 5px 12px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); margin-bottom: 18px; }
+  .lm-hero h1 { font-size: clamp(32px, 6vw, 54px); line-height: 1.08; letter-spacing: -.02em; margin: 0 0 16px; }
+  .lm-grad { background: linear-gradient(90deg, var(--accent), #d36bff); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .lm-lead { color: var(--muted); font-size: clamp(16px, 2.2vw, 19px); line-height: 1.55; max-width: 640px; margin: 0 auto 26px; }
+  .lm-cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .lm-cta a { text-decoration: none; }
+  button.big { padding: 12px 22px; font-size: 16px; border-radius: 10px; }
+  .lm-diagram { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; align-items: stretch; gap: 10px; margin: 36px auto 0; text-align: center; }
+  .lm-node { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px 12px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 4px; align-items: center; }
+  .lm-node b { font-size: 16px; }
+  .lm-node > span:last-child { color: var(--muted); font-size: 13px; line-height: 1.4; }
+  .lm-node-main { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+  .lm-ico { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 12px; background: var(--accent-soft); color: var(--accent); margin-bottom: 4px; }
+  .lm-arrow { align-self: center; color: var(--muted); font-size: 22px; }
+  .lm-section { max-width: 960px; margin: 72px auto 0; }
+  .lm-h2 { font-size: clamp(24px, 4vw, 32px); letter-spacing: -.01em; text-align: center; margin: 0 0 6px; }
+  .lm-sub { color: var(--muted); text-align: center; margin: 0 0 28px; font-size: 16px; }
+  .lm-section .lm-h2 + .lm-two, .lm-section .lm-h2 + .lm-safe { margin-top: 28px; }
+  .lm-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  .lm-step { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; box-shadow: var(--shadow); }
+  .lm-step-you { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+  .lm-step h3 { margin: 12px 0 6px; font-size: 18px; text-transform: none; letter-spacing: 0; color: var(--text); }
+  .lm-step p { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.55; }
+  .lm-num { display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--accent); color: #fff; font-weight: 700; }
+  .lm-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .lm-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 24px; box-shadow: var(--shadow); display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+  .lm-card h3 { margin: 6px 0 4px; font-size: 22px; text-transform: none; letter-spacing: 0; color: var(--text); }
+  .lm-card a { text-decoration: none; }
+  .lm-tag { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: var(--ok-soft); color: var(--ok); }
+  .lm-tag-owner { background: var(--accent-soft); color: var(--accent); }
+  .lm-list { margin: 8px 0 18px; padding: 0; list-style: none; flex: 1; }
+  .lm-list li { position: relative; padding: 5px 0 5px 26px; color: var(--muted); font-size: 15px; line-height: 1.5; }
+  .lm-list li::before { content: "✓"; position: absolute; left: 0; color: var(--ok); font-weight: 700; }
+  .lm-safe { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+  .lm-safe > div { display: flex; flex-direction: column; gap: 6px; }
+  .lm-safe b { font-size: 15px; }
+  .lm-safe > div > span:last-child { color: var(--muted); font-size: 14px; line-height: 1.5; }
+  .lm-ico-s { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: var(--accent-soft); color: var(--accent); }
+  .lm-faq { max-width: 720px; }
+  .lm-faq .lm-h2 { margin-bottom: 20px; }
+  .lm-faq details { border-top: 1px solid var(--border); padding: 14px 4px; }
+  .lm-faq details:last-of-type { border-bottom: 1px solid var(--border); }
+  .lm-faq summary { cursor: pointer; font-weight: 600; font-size: 16px; list-style: none; display: flex; justify-content: space-between; gap: 12px; }
+  .lm-faq summary::-webkit-details-marker { display: none; }
+  .lm-faq summary::after { content: "+"; color: var(--accent); font-size: 20px; line-height: 1; }
+  .lm-faq details[open] summary::after { content: "–"; }
+  .lm-faq p { margin: 10px 0 0; color: var(--muted); font-size: 15px; line-height: 1.6; }
+  .lm-final { max-width: 960px; margin: 72px auto 24px; text-align: center; padding: 44px 20px; border-radius: 20px; background: linear-gradient(135deg, var(--accent-soft), var(--surface-2)); border: 1px solid var(--border); }
+  .lm-final h2 { margin: 0 0 6px; font-size: clamp(24px, 4vw, 32px); }
+  .lm-final p { color: var(--muted); margin: 0 0 20px; }
+  @media (max-width: 760px) {
+    .lm-diagram { grid-template-columns: 1fr; }
+    .lm-arrow { transform: rotate(90deg); }
+    .lm-steps, .lm-two, .lm-safe { grid-template-columns: 1fr; }
+    .lm-section { margin-top: 56px; }
+  }
   .how { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
   @media (max-width: 760px) { .how { grid-template-columns: 1fr; } }
   .how .panel { margin-top: 0; }
@@ -319,6 +379,7 @@ async function render() {
     if (view === "project") return await viewProject(parts[1], parts[2]);
     if (view === "run") return await viewRun(parts[1]);
     if (view === "review") return await viewReview(parts[1]);
+    if (view === "auto") return await viewAuto(parts[1]);
     if (view === "publish") return await viewPublish();
     if (view === "runs") return await viewRuns();
     return await viewProjects();
@@ -347,10 +408,16 @@ async function viewProjects() {
     ${signedOut() ? heroHtml(true) : ""}
     <div class="row" id="projects-list" style="justify-content:space-between;flex-wrap:wrap;align-items:flex-end;margin-bottom:20px;${signedOut() ? "margin-top:40px" : ""}">
       <div><h1>Projects</h1><p class="sub" style="margin:0">Open-source projects looking for help. Pick one and lend your AI to its tasks.</p></div>
-      <a href="#/publish"><button class="primary">Add your project</button></a>
+      <div class="row">
+        ${me.mode === "local" ? `<button id="autoAll" class="primary">Let my AI work on tasks</button>` : ""}
+        <a href="#/publish"><button${me.mode === "local" ? "" : ` class="primary"`}>Add your project</button></a>
+      </div>
     </div>
-    <div id="list">${loading("projects")}</div>`;
+    ${me.mode === "local" ? `<label class="check" style="display:flex;gap:8px;align-items:flex-start;margin:-6px 0 16px"><input type="checkbox" id="ponytail" style="width:auto;margin-top:3px" disabled><span><b>Write smaller changes</b> <span class="fine" style="display:block">Adds the <a href="https://ponytail.dev" target="_blank" rel="noopener">ponytail</a> rules to your AI's instructions: reuse what exists, shortest working diff, fewer tokens. Untick to turn it off.</span></span></label>` : ""}
+    <div id="list">${loading("projects")}</div>`
   if (signedOut()) loadSolvedCounter();
+  document.getElementById("autoAll")?.addEventListener("click", (e) => startAuto(e.target, {}));
+  if (me.mode === "local") mountSettings();
   const list = document.getElementById("list");
   try {
     const projects = await call("GET", "/api/projects");
@@ -487,6 +554,7 @@ async function viewProject(o, r) {
     ${p.description ? `<p class="lead">${esc(p.description)}</p>` : ""}
     ${!p.listed ? `<div class="banner warn">This project is not listed, so it doesn't appear on the Projects page.</div>` : ""}
     ${p.canManage && me.mode === "hosted" ? `<div class="panel plan"><div><b>Plan tasks with Claude</b><span>Tell Claude what you want to achieve. It reads your project, suggests small tasks, and posts them once you approve.</span></div><div id="plan"><button class="primary" disabled><span class="spinner"></span> Plan tasks with Claude</button></div></div>` : ""}
+    ${me.mode === "local" && p.tasks.some((t) => t.state.kind === "available") ? `<div class="row" style="margin-bottom:16px"><button id="autoRepo" class="primary">Let my AI work on this project</button><span class="fine">Claims open tasks and works on them on this computer.</span></div>` : ""}
     <div class="stats">
       <div><b>${p.tasks.length - inReview - failed}</b><span>open tasks</span></div>
       <div><b>${inReview}</b><span>in review</span></div>
@@ -505,6 +573,7 @@ async function viewProject(o, r) {
     if (confirm("Remove this project from lendmyai? Its tasks stay on GitHub but won't be listed.")) toggle(e.target, `/api/projects/${o}/${r}/unlist`, "Project unlisted");
   });
   document.getElementById("list")?.addEventListener("click", (e) => toggle(e.target, `/api/repos/${o}/${r}/init`, "Project listed"));
+  document.getElementById("autoRepo")?.addEventListener("click", (e) => startAuto(e.target, { repo: full }));
   document.getElementById("reviewAll")?.addEventListener("click", async (e) => {
     e.target.disabled = true;
     try { const { reviewId } = await call("POST", `/api/projects/${o}/${r}/review`, {}); location.hash = `#/review/${reviewId}`; }
@@ -712,6 +781,13 @@ async function viewTask(o, r, n) {
         <h1>${esc(t.title)}</h1>
         <div style="height:12px"></div>
         ${failedBanner}
+        ${s.failure && !t.blocked && s.kind !== "in-review" && !signedOut() ? `<div class="panel" style="margin-bottom:16px">
+          <label for="attemptNote" style="font-weight:600">Add a short note before trying again</label>
+          <textarea id="attemptNote" rows="2" maxlength="1000" placeholder="e.g. The button should only appear for signed-in users." style="margin-top:6px"></textarea>
+          <div id="noteThumbs" class="row" style="margin-top:8px;gap:8px;flex-wrap:wrap"></div>
+          <input type="file" id="noteFile" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden>
+          <div class="row" style="margin-top:8px;gap:10px;flex-wrap:wrap"><button id="addImages">Add images</button><button id="saveNote">Save note</button><span class="fine">The next AI that works on this task reads the note and sees the images (up to 3, 2 MB each; you can also paste them).</span></div>
+        </div>` : ""}
         ${t.warnings.map((w) => `<div class="banner warn">⚠ ${esc(w)}</div>`).join("")}
         <div class="panel"><h2>Task</h2><div class="md">${md(t.body)}</div></div>
         ${t.notes.length ? `<div class="panel"><h2>Maintainer comments</h2>${t.notes.map((nt) => `<div class="md" style="margin-bottom:10px">${md(nt)}</div>`).join("")}</div>` : ""}
@@ -732,11 +808,43 @@ async function viewTask(o, r, n) {
     forcedTasks.add(t.ref);
     render();
   });
+  // Images for the note: picked or pasted, shown as thumbnails, sent as base64.
+  const noteImgs = [];
+  const drawThumbs = () => {
+    const box = document.getElementById("noteThumbs");
+    if (!box) return;
+    box.innerHTML = noteImgs.map((im, i) => `<span style="position:relative"><img src="${im.url}" alt="" style="height:56px;border-radius:6px;border:1px solid var(--border)"><button data-rm="${i}" title="Remove" style="position:absolute;top:-6px;right:-6px;padding:0 6px;border-radius:999px">×</button></span>`).join("");
+    box.querySelectorAll("[data-rm]").forEach((b) => b.addEventListener("click", () => { noteImgs.splice(Number(b.dataset.rm), 1); drawThumbs(); }));
+  };
+  const addImageFiles = (files) => {
+    for (const f of files) {
+      if (!f.type.startsWith("image/")) continue;
+      if (noteImgs.length >= 3) { toast("Up to 3 images."); break; }
+      if (f.size > 2_000_000) { toast(`${f.name || "Image"} is larger than 2 MB.`); continue; }
+      const reader = new FileReader();
+      reader.onload = () => { noteImgs.push({ name: f.name, data: String(reader.result).split(",")[1], url: reader.result }); drawThumbs(); };
+      reader.readAsDataURL(f);
+    }
+  };
+  const noteBody = (text) => ({ text, images: noteImgs.map(({ name, data }) => ({ name, data })) });
+  document.getElementById("addImages")?.addEventListener("click", () => document.getElementById("noteFile").click());
+  document.getElementById("noteFile")?.addEventListener("change", (e) => { addImageFiles(e.target.files); e.target.value = ""; });
+  document.getElementById("attemptNote")?.addEventListener("paste", (e) => addImageFiles([...(e.clipboardData?.files ?? [])]));
+  document.getElementById("saveNote")?.addEventListener("click", async (e) => {
+    const text = document.getElementById("attemptNote").value.trim();
+    if (!text && !noteImgs.length) return toast("Write a short note first.");
+    e.target.disabled = true;
+    try { await call("POST", `/api/tasks/${o}/${r}/${n}/note`, noteBody(text)); toast("Note saved. Run the task again."); render(); }
+    catch (err) { toast(err.message); e.target.disabled = false; }
+  });
   document.getElementById("run")?.addEventListener("click", async (e) => {
     const agent = document.getElementById("agent").value;
-    if (!confirm(`Claim ${t.ref} and run ${agent}?\n\nThis posts a claim comment on GitHub, checks out the repo in ~/.lendmyai/work and runs ${agent} headless. Nothing is pushed until you choose.`)) return;
+    if (!confirm(`Claim ${t.ref} and run ${agent}?\n\nThis posts a claim comment on GitHub, checks out the repo in ~/.lendmyai/work and runs ${agent} headless. The result is sent to the project owner automatically.`)) return;
     e.target.disabled = true; e.target.innerHTML = `<span class="spinner"></span> Starting…`;
     try {
+      // A note typed above is saved first, so this attempt reads it.
+      const pending = document.getElementById("attemptNote")?.value.trim();
+      if (pending || noteImgs.length) await call("POST", `/api/tasks/${o}/${r}/${n}/note`, noteBody(pending ?? ""));
       const { jobId } = await call("POST", `/api/tasks/${o}/${r}/${n}/run`, { agent, force: forced });
       location.hash = `#/run/${jobId}`;
     } catch (err) {
@@ -804,12 +912,84 @@ function timeline(events, o, r) {
     release: `<b>${esc(personName(ev))}</b> released`,
     handoff: `<b>${esc(personName(ev))}</b> checkpointed to <span class="mono">${esc(ev.data.repo)}:${esc(ev.data.branch)}</span>`,
     failed: `<b>${esc(personName(ev))}</b>'s agent could not complete this task`,
+    note: `<b>${esc(personName(ev))}</b> added a note for the next attempt`,
     done: `<b>${esc(personName(ev))}</b> opened <a href="https://github.com/${esc(o)}/${esc(r)}/pull/${esc(ev.data.pr)}" target="_blank" rel="noopener">PR #${esc(ev.data.pr)}</a>`,
   })[ev.kind];
   return `<ul class="timeline">${[...events].reverse().map((ev) => {
-    const note = ev.kind === "handoff" ? ev.text.split("\n").slice(1).join("\n").trim() : ev.kind === "failed" ? ev.text.split("\n").slice(1).join("\n").trim() : "";
+    const note = ev.kind === "handoff" ? ev.text.split("\n").slice(1).join("\n").trim() : ev.kind === "failed" || ev.kind === "note" ? ev.text.split("\n").slice(1).join("\n").trim() : "";
     return `<li>${label(ev)}<div class="when">${ago(ev.at)}</div>${note ? `<div class="note md">${md(note)}</div>` : ""}</li>`;
   }).join("")}</ul>`;
+}
+
+// ---------- settings ----------
+async function mountSettings() {
+  const box = document.getElementById("ponytail");
+  if (!box) return;
+  try {
+    box.checked = (await call("GET", "/api/settings")).ponytail;
+    box.disabled = false;
+    box.addEventListener("change", async () => {
+      try { await call("POST", "/api/settings", { ponytail: box.checked }); toast(box.checked ? "Smaller changes: on" : "Smaller changes: off"); }
+      catch (e) { toast(e.message); box.checked = !box.checked; }
+    });
+  } catch { box.closest("label").hidden = true; }
+}
+
+// ---------- let my AI work on tasks ----------
+async function startAuto(btn, body) {
+  if (!confirm("Your AI will claim open tasks and work on them on this computer. Finished work is sent to the project owner as a pull request, and you can stop at any time. Start?")) return;
+  btn.disabled = true;
+  try { const { autoId } = await call("POST", "/api/auto", body); location.hash = `#/auto/${autoId}`; }
+  catch (err) { toast(err.message); btn.disabled = false; }
+}
+
+async function viewAuto(id) {
+  main.innerHTML = loading("progress");
+  let job = await call("GET", `/api/autos/${id}?since=0`);
+  main.innerHTML = `
+    <a class="back" href="#/">← Projects</a>
+    <div class="row" style="justify-content:space-between;flex-wrap:wrap;margin-bottom:12px">
+      <h1>Your AI is working</h1>
+      <div class="row"><span id="status"></span><button id="stop" class="danger" hidden>Stop</button></div>
+    </div>
+    <div id="outcomes"></div>
+    <pre class="term" id="term" style="height:340px"></pre>`;
+  const term = document.getElementById("term");
+  const box = document.getElementById("outcomes");
+  const stopBtn = document.getElementById("stop");
+  stopBtn.onclick = async () => {
+    if (confirm("Stop? Tasks still running are released so someone else can take them.")) { stopBtn.disabled = true; await call("POST", `/api/autos/${id}/stop`).catch((e) => toast(e.message)); }
+  };
+  const append = (lines) => {
+    const stick = term.scrollTop + term.clientHeight >= term.scrollHeight - 30;
+    for (const l of lines) {
+      const span = document.createElement("span");
+      span.className = /→/.test(l) ? "tool" : /✓|Pull request opened/.test(l) ? "ok" : /failed|error/i.test(l) ? "err" : "";
+      span.textContent = l + "\n";
+      term.appendChild(span);
+    }
+    if (stick) term.scrollTop = term.scrollHeight;
+  };
+  const show = (j) => {
+    document.getElementById("status").innerHTML = j.status === "running" ? `<span class="spinner"></span> Working…` : j.status === "error" ? `<span class="pill danger">error</span>` : `<span class="pill ok">done</span>`;
+    stopBtn.hidden = j.status !== "running";
+    box.innerHTML = (j.error ? errorBox(j.error) : "") + (j.outcomes.length ? `
+      <div class="panel" style="margin-bottom:16px"><table>
+        <tr><th>Task</th><th>Result</th></tr>
+        ${j.outcomes.map((o) => `<tr><td class="mono">${esc(o.ref)}</td><td>${esc(o.result)}</td></tr>`).join("")}
+      </table></div>` : "");
+  };
+  append(job.log);
+  show(job);
+  let seen = job.logLength;
+  pollTimer = setInterval(async () => {
+    if (!location.hash.startsWith(`#/auto/${id}`)) return clearInterval(pollTimer);
+    try {
+      const j = await call("GET", `/api/autos/${id}?since=${seen}`);
+      append(j.log); seen = j.logLength; job = j; show(j);
+      if (j.status !== "running") clearInterval(pollTimer);
+    } catch { clearInterval(pollTimer); }
+  }, 1500);
 }
 
 // ---------- review all ----------
@@ -905,7 +1085,8 @@ async function viewRun(id) {
     shown = key;
     const after = document.getElementById("after");
     if (job.status === "error") after.innerHTML = `<div style="margin-top:16px">${errorBox(job.error)}</div>`;
-    else if (job.status === "review" || job.status === "completing") after.innerHTML = reviewPanel(job);
+    else if (job.status === "completing") after.innerHTML = `<div class="banner info" style="margin-top:16px"><span class="spinner"></span>&nbsp; Sending the result to the project owner…</div>`;
+    else if (job.status === "review") after.innerHTML = `${job.error ? `<div style="margin-top:16px">${errorBox("Couldn't send the result automatically: " + job.error)}</div>` : ""}${reviewPanel(job)}`;
     else if (job.status === "done") after.innerHTML = `<div class="panel" style="margin-top:16px"><div class="banner ok" style="margin:0">✓ ${esc(job.result.message)}${job.result.url ? ` · <a href="${esc(job.result.url)}" target="_blank" rel="noopener">${esc(job.result.url)}</a>` : ""}</div></div>`;
     else after.innerHTML = "";
     after.querySelectorAll("[data-choice]").forEach((b) => b.addEventListener("click", () => finish(b.dataset.choice)));
@@ -1072,18 +1253,87 @@ document.addEventListener("click", (e) => {
 });
 
 function heroHtml(browseLink) {
+  const browse = browseLink
+    ? `<button class="primary big" onclick="document.getElementById('projects-list').scrollIntoView({ behavior: 'smooth' })">Browse projects</button>`
+    : signInButton("Sign in with GitHub", "primary big");
   return `
-    <section class="hero">
-      <h1>Lend your AI to projects that need help</h1>
-      <p>Have Claude? Pick a task a project owner posted, and Claude does the work for you right in your Claude chat. No coding or GitHub account needed. The owner reviews the result.</p>
-      ${browseLink ? `<button class="primary big" onclick="document.getElementById('projects-list').scrollIntoView({ behavior: 'smooth' })">Browse projects</button>` : signInButton("Sign in with GitHub", "primary big")}
-      <p class="fine">Free. Works with any Claude plan. Only project owners need GitHub.</p>
+    <section class="lm-hero">
+      <span class="lm-eyebrow">Free · works with any Claude plan</span>
+      <h1>Your AI can help build<br><span class="lm-grad">open-source projects</span></h1>
+      <p class="lm-lead">Pick a task, press one button, and your Claude does the work. The project owner checks the result before anything changes. No coding. No GitHub account.</p>
+      <div class="lm-cta">${browse}<a href="#/publish"><button class="big">I have a project</button></a></div>
       <p class="fine" id="solved-counter"><span class="spinner"></span></p>
+
+      <div class="lm-diagram" aria-label="How a task travels">
+        <div class="lm-node"><span class="lm-ico"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M9 8h6M9 12h6M9 16h3"/></svg></span><b>A task</b><span>An owner describes what they need</span></div>
+        <span class="lm-arrow" aria-hidden="true">→</span>
+        <div class="lm-node lm-node-main"><span class="lm-ico"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z"/></svg></span><b>Your AI</b><span>Claude does the work on your side</span></div>
+        <span class="lm-arrow" aria-hidden="true">→</span>
+        <div class="lm-node"><span class="lm-ico"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="9" r="2.5"/><path d="M6 8.5v7M18 11.5c0 4-5 3-10.5 5.5"/></svg></span><b>Owner reviews</b><span>They accept it or ask for changes</span></div>
+      </div>
     </section>
-    <section class="how">
-      <div class="panel"><div class="num">1</div><h2>Owners add projects</h2><p>Anyone with a project on GitHub can list it and post tasks they want done, each with a clear "done when".</p></div>
-      <div class="panel"><div class="num">2</div><h2>You lend your AI</h2><p>Pick a task and click <b>Open Claude</b>. Claude does the work in your normal Claude chat, with any Claude plan.</p></div>
-      <div class="panel"><div class="num">3</div><h2>Owner reviews</h2><p>The result goes to the owner as a suggested change. They decide what gets in.</p></div>
+
+    <section class="lm-section" id="how">
+      <h2 class="lm-h2">How it works</h2>
+      <p class="lm-sub">Three steps. You only do the middle one.</p>
+      <div class="lm-steps">
+        <div class="lm-step"><span class="lm-num">1</span><h3>Owners post tasks</h3><p>People who run a project on GitHub write small tasks with a clear "done when". Each one is something an AI can finish in one go.</p></div>
+        <div class="lm-step lm-step-you"><span class="lm-num">2</span><h3>You press one button</h3><p>Choose a task and click <b>Open Claude</b>. Claude opens with everything already typed in. Press Send, then relax.</p></div>
+        <div class="lm-step"><span class="lm-num">3</span><h3>The owner decides</h3><p>Your work arrives as a suggested change with your name on it. The owner reads it and chooses what goes in.</p></div>
+      </div>
+    </section>
+
+    <section class="lm-section">
+      <h2 class="lm-h2">Pick your side</h2>
+      <div class="lm-two">
+        <div class="lm-card">
+          <span class="lm-tag">I have Claude</span>
+          <h3>Lend your AI</h3>
+          <ul class="lm-list">
+            <li>Works with any Claude plan, even the free one</li>
+            <li>No coding and no GitHub account needed</li>
+            <li>Your name is credited on every change</li>
+            <li>Power users: a Mac app can work on several tasks for you at once</li>
+          </ul>
+          ${browseLink ? `<button class="primary" onclick="document.getElementById('projects-list').scrollIntoView({ behavior: 'smooth' })">Find a task</button>` : signInButton("Sign in with GitHub", "primary")}
+        </div>
+        <div class="lm-card">
+          <span class="lm-tag lm-tag-owner">I have a project</span>
+          <h3>Get help with yours</h3>
+          <ul class="lm-list">
+            <li>List a public GitHub repo in a few clicks</li>
+            <li>Let Claude plan the tasks for you, or write your own</li>
+            <li>Review everything in one place; the Mac app reviews and merges in one click</li>
+            <li>Nothing is merged unless you say so</li>
+          </ul>
+          <a href="#/publish"><button class="primary">Add your project</button></a>
+        </div>
+      </div>
+    </section>
+
+    <section class="lm-section">
+      <h2 class="lm-h2">Built to be safe</h2>
+      <div class="lm-safe">
+        <div><span class="lm-ico-s"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg></span><b>Owners stay in control</b><span>Every change is a suggestion. Only the owner can accept it.</span></div>
+        <div><span class="lm-ico-s"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12l8-8M16 7l3 3"/></svg></span><b>Your AI stays yours</b><span>lendmyai never sees your Claude login or password.</span></div>
+        <div><span class="lm-ico-s"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9.5"/></svg></span><b>Approved tasks only</b><span>Your AI only works on tasks a project maintainer approved.</span></div>
+        <div><span class="lm-ico-s"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-4.4-7-10a4 4 0 017-2.6A4 4 0 0119 11c0 5.6-7 10-7 10z"/></svg></span><b>Free and open</b><span>No fees, no hosting of your code. Everything lives on GitHub.</span></div>
+      </div>
+    </section>
+
+    <section class="lm-section lm-faq">
+      <h2 class="lm-h2">Questions</h2>
+      <details><summary>Do I need to know how to code?</summary><p>No. Claude writes the code. You just choose a task and press Send.</p></details>
+      <details><summary>Does it cost anything?</summary><p>lendmyai is free. Your AI work uses your own Claude plan, the same as any chat, so a free plan works too.</p></details>
+      <details><summary>Do I need a GitHub account?</summary><p>Not to lend your AI. You connect lendmyai to Claude once and a lendmyai helper account opens the change for you, crediting your name. Project owners do need GitHub, because their project lives there.</p></details>
+      <details><summary>What if the AI gets it wrong?</summary><p>Nothing breaks. The owner reviews every change and can ask for fixes or say no. If a task can't be done, the AI explains why so the next person can try again.</p></details>
+      <details><summary>Can I stop at any time?</summary><p>Yes. Close the chat, or give the task back, and someone else can pick it up.</p></details>
+    </section>
+
+    <section class="lm-final">
+      <h2>Ready to lend a hand?</h2>
+      <p>It takes about a minute to start.</p>
+      <div class="lm-cta">${browse}<a href="https://docs.lendmyai.com" target="_blank" rel="noopener"><button class="big">Read the docs</button></a></div>
     </section>`;
 }
 

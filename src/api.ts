@@ -1,7 +1,7 @@
 import { GitHubError, api, isAnonymous, me, postComment } from "./github.js";
 import { PRIORITIES, REPO_TOPIC, TASK_LABEL, actorOf, marker, parseMarker, stripMarker } from "./protocol.js";
 import {
-  branchFor, buildCloudPrompt, checkWorkable, claim, claudeCodeUrl, findPushedWork, headRepo, postHandoff, prepareBranch, release, submitPullRequest,
+  branchFor, buildCloudPrompt, checkWorkable, claim, claudeCodeUrl, findPushedWork, headRepo, postHandoff, postNote, prepareBranch, release, submitPullRequest,
 } from "./contribute.js";
 import { createTask, listProject, managedRepos } from "./projects.js";
 import { approveSuggestion, createSuggestion, declineSuggestion, listSuggestions, voteSuggestion } from "./suggestions.js";
@@ -200,6 +200,15 @@ export const sharedRoutes: Route[] = [
     const note = `### What changed\n${work.commits.map((c) => `- ${c}`).join("\n")}`;
     const pr = await submitPullRequest(task, head, work.branch, login, CLOUD_AGENT, note);
     return { prUrl: pr.html_url, pr: pr.number };
+  }),
+
+  // A short note for the next attempt, e.g. after a task failed. The agent reads it before it starts.
+  route("POST", "/api/tasks/:owner/:repo/:n/note", async ([o, r, n], body) => {
+    const [login, task] = await Promise.all([me(), loadTask(o, r, Number(n))]);
+    await postNote(task, login, String(body?.text ?? ""), Array.isArray(body?.images) ? body.images : []).catch((e) => {
+      throw new HttpError(400, e.message);
+    });
+    return { ok: true };
   }),
 
   route("POST", "/api/tasks/:owner/:repo/:n/giveup", async ([o, r, n]) => {

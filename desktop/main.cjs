@@ -1,7 +1,7 @@
 // lendmyai for macOS: a window around the local app. It starts the same local
-// server as `npx lendmyai` (127.0.0.1 only) and shows it, so project owners get
-// "Review all pull requests" without a terminal.
-const { app, BrowserWindow, dialog, shell } = require("electron");
+// server as `npx lendmyai` (127.0.0.1 only) and shows it, so contributors can let
+// their AI work on tasks, and owners can review all pull requests, without a terminal.
+const { app, BrowserWindow, dialog, nativeImage, shell } = require("electron");
 const { execFileSync } = require("node:child_process");
 const { createServer } = require("node:net");
 const { join } = require("node:path");
@@ -44,7 +44,9 @@ async function start() {
   const { serve } = await load("server.js");
   serve(port, { open: false });
 
-  const win = new BrowserWindow({ width: 1180, height: 820, title: "lendmyai", backgroundColor: "#0f0f12" });
+  const icon = nativeImage.createFromPath(join(__dirname, "build", "icon.png"));
+  if (process.platform === "darwin" && !icon.isEmpty()) app.dock.setIcon(icon);
+  const win = new BrowserWindow({ width: 1180, height: 820, title: "lendmyai", backgroundColor: "#0f0f12", icon });
   // Links to GitHub and other sites open in the browser, not in this window.
   win.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);

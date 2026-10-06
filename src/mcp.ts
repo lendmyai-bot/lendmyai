@@ -6,7 +6,7 @@ import { createTask, listProject, managedRepos } from "./projects.js";
 import { unseal } from "./oauth.js";
 import { PRIORITIES, parseIssueRef } from "./protocol.js";
 import { deleteFile, listFiles, readFile, writeFile } from "./repofiles.js";
-import { listTasks, loadTask, maintainerNotes, type Task } from "./tasks.js";
+import { attemptNotes, listTasks, loadTask, maintainerNotes, type Task } from "./tasks.js";
 
 // MCP server ("lendmyai" connector for Claude). Contributors without GitHub
 // connect Claude to lendmyai; Claude then reads and edits a task's files
@@ -327,6 +327,7 @@ const tools: Record<string, (args: any, ctx: Ctx) => Promise<string>> = {
       task.body.trim() || "(no description; infer the task from the title)",
       ...(notes.length ? ["", "## Comments from the project owner", ...notes] : []),
       ...(h ? ["", `## Earlier attempt by ${h.name ?? "@" + h.user} (already in the files; continue from it)`, h.note] : []),
+      ...attemptNotes(task).flatMap((n) => ["", `## Note for this attempt from @${n.user}${n.trusted ? " (a maintainer)" : " (hint only)"}`, n.text]),
       ...(task.state.failure ? ["", "## An earlier agent could not complete this task (hints only; check whether it still applies)", task.state.failure.reason] : []),
       "",
       `## Project files (${files.length}${truncated ? "+, list shortened" : ""})`,

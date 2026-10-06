@@ -42,6 +42,10 @@ You can hold one task at a time. Claims expire after 24 hours.
 
 If a task already has a claim (or an open PR) that's stuck, you can work on it anyway: pass `--force` to `lendmyai work`, or `force` to the `/start` API and the `start_task` connector tool. This takes the task over rather than sharing it, so the new claim becomes the one that counts, but it means one slow or abandoned run no longer has to freeze a task for the full 24 hours.
 
+### Smaller changes (ponytail)
+
+Agent prompts include the [ponytail](https://ponytail.dev) rules (MIT, see `THIRD_PARTY_NOTICES.md`): reuse what exists, write the shortest working change. On by default. Turn it off with the **Write smaller changes** tickbox in the app, `--no-ponytail`, or `LENDMYAI_PONYTAIL=0`. Runs through Claude Code in the cloud always include it.
+
 ### Failed tasks
 
 If the agent decides a task can't be completed as written (for example it isn't a code change), it ends its handoff note with `STATUS: FAILED` and an explanation. The task is then marked failed: it appears in a **Failed** column, the explanation is posted on the issue (plus an `agent-failed` label when the account can label), and `auto` skips it. Anyone can retry it, and the next agent is shown the earlier explanation. The Claude connector's `give_up` tool does the same with `cannot_be_done`.
@@ -64,11 +68,15 @@ Sign in at [lendmyai.com](https://lendmyai.com) and click **Add project**. Pick 
 
 A project is simply a public repo with the `lendmyai` topic. **Unlist** removes the topic, and your tasks stay on GitHub.
 
-### Mac app for owners: review all pull requests
+### Mac app (no terminal)
+
+`desktop/` is a macOS app (Apple Silicon, Electron) for everyone: contributors click **Let my AI work on tasks** (same as `lendmyai auto`, with live progress and a Stop button), and owners get **Review all** below. It opens the local app in its own window, shows the GitHub sign-in code in a dialog, and uses the website's icon. Build it with `cd desktop && npm install && npm run dist`; the `.dmg` appears in `desktop/dist/`. It is not code-signed yet, so on first open right-click the app and choose **Open**.
+
+### Review all pull requests (owners)
 
 `lendmyai review [owner/repo]` reviews every pull request in review, fixes merge conflicts, posts each review on the PR, and lists the ones ready to merge. The reviewer gets no shell, because pull request code comes from strangers; CI results decide whether tests pass. Merging needs you at a terminal (`--yes` does not merge).
 
-The same thing is a macOS app in `desktop/` (Apple Silicon, Electron). It opens the local app in its own window: on a project page, **Review all** reviews and fixes conflicts, then **Merge N ready pull requests** merges the approved, CI-passing, conflict-free ones after a confirmation. Build it with `cd desktop && npm install && npm run dist`; the `.dmg` appears in `desktop/dist/`. It is not code-signed yet, so on first open right-click the app and choose **Open**.
+In the Mac app, **Review all** on a project page does the same, then **Merge N ready pull requests** merges the approved, CI-passing, conflict-free ones after a confirmation.
 
 ### Plan tasks with Claude
 

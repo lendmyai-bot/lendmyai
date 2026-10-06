@@ -6,6 +6,7 @@ import {
   computeState,
   isTrusted,
   parseMarker,
+  stripMarker,
   priorityOf,
   priorityRank,
   type Comment,
@@ -87,6 +88,24 @@ export async function stateOf(owner: string, repo: string, comments: Comment[]):
 /** Comments from maintainers that add context to the task (markers excluded). */
 export function maintainerNotes(task: Task): string[] {
   return task.comments.filter((c) => isTrusted(c.association) && !parseMarker(c.body)).map((c) => `@${c.user}: ${c.body.trim()}`);
+}
+
+/** Notes people left for the next attempt (see postNote), oldest first. Only maintainers' notes are instructions. */
+export function attemptNotes(task: Task): { user: string; trusted: boolean; text: string }[] {
+  return task.comments
+    .filter((c) => parseMarker(c.body)?.kind === "note")
+    .map((c) => ({ user: c.user, trusted: isTrusted(c.association), text: stripMarker(c.body).replace(/^📝[^\n]*\n+/, "").trim() }))
+    .filter((n) => n.text)
+    .slice(-5);
+}
+
+/** Image links in notes that lendmyai itself stored (and only those), for giving the agent local copies. */
+export function noteImageUrls(task: Task): string[] {
+  const urls = new Set<string>();
+  for (const n of attemptNotes(task)) {
+    for (const m of n.text.matchAll(/!\[[^\]]*\]\((https:\/\/raw\.githubusercontent\.com\/[\w.-]+\/[\w.-]+\/lendmyai-assets\/lendmyai-assets\/\d+\/[\w.-]+\.(?:png|jpg|gif|webp))\)/g)) urls.add(m[1]);
+  }
+  return [...urls].slice(0, 6);
 }
 
 export interface TaskSummary {

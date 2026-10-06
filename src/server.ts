@@ -6,8 +6,10 @@ import { openBrowser } from "./auth.js";
 import { me } from "./github.js";
 import { loadTask, type Task } from "./tasks.js";
 import { checkWorkable } from "./contribute.js";
+import { pickTasks, startTasks, type AutoRun, type Outcome as AutoOutcome } from "./auto.js";
+import { readSettings, writeSettings } from "./settings.js";
 import { findPrs, mergePr, reviewPrs, type Outcome } from "./review.js";
-import { begin, buildPrompt, complete, defaultChoice, review, type Choice, type Review, type Workspace } from "./work.js";
+import { attachImages, begin, buildPrompt, complete, defaultChoice, finishAutomatically, review, type Choice, type Review, type Workspace } from "./work.js";
 
 // Local app: the shared website API plus agent runs on this computer. It binds
 // to 127.0.0.1 only and rejects requests whose Host or Origin is not this
@@ -39,6 +41,19 @@ interface ReviewJob {
   startedAt: string;
 }
 
+interface AutoJob {
+  id: string;
+  repo?: string;
+  status: "running" | "done" | "error";
+  log: string[];
+  tasks: string[];
+  outcomes: AutoOutcome[];
+  error?: string;
+  startedAt: string;
+  run?: AutoRun;
+}
+
+const autos = new Map<string, AutoJob>();
 const reviews = new Map<string, ReviewJob>();
 const jobs = new Map<string, Job>();
 let jobSeq = 0;
@@ -76,20 +91,72 @@ const localRoutes: Route[] = [
       log(`Workspace: ${ws.dir} (branch ${ws.branch})`);
       log(`Starting ${agent.name} (headless)…`);
       job.status = "running";
-      const run = streamAgent(agent.streamCommand(buildPrompt(task)), ws.dir, log);
+      const run = streamAgent(agent.streamCommand(buildPrompt(task, await attachImages(task, ws.dir))), ws.dir, log);
       job.kill = run.kill;
       const code = await run.done;
       job.kill = undefined;
       log(`${agent.name} exited with code ${code}.`);
       job.review = review(task, ws);
       job.defaultChoice = defaultChoice(job.review);
-      job.status = "review";
+      // Nobody has to decide: the agent's verdict does. If posting fails the run stays open so the choice can be made by hand.
+      job.status = "completing";
+      try {
+        job.result = await finishAutomatically(task, ws, login, job.agent, job.review, agent);
+        log(`✓ ${job.result.message}${job.result.url ? `: ${job.result.url}` : ""}`);
+        job.status = "done";
+      } catch (e) {
+        job.error = e instanceof Error ? e.message : String(e);
+        job.status = "review";
+      }
     })().catch((e) => {
       job.status = "error";
       job.error = e instanceof Error ? e.message : String(e);
     });
 
     return { jobId: job.id };
+  }),
+
+  route("GET", "/api/settings", async () => readSettings()),
+  route("POST", "/api/settings", async (_p, body) => writeSettings({ ponytail: body?.ponytail })),
+
+  // Contributors: find open tasks and work on a few at once, unattended (same as `lendmyai auto`).
+  route("POST", "/api/auto", async (_p, body) => {
+    const repo = typeof body?.repo === "string" && body.repo.includes("/") ? body.repo : undefined;
+    if ([...autos.values()].some((j) => j.status === "running")) throw new HttpError(409, "AI is already working on tasks.");
+    const agent = resolveAgent({ agent: body?.agent || undefined });
+    const max = Math.min(Math.max(Number(body?.max ?? 3), 1), 10);
+    const parallel = Math.min(Math.max(Number(body?.parallel ?? 2), 1), 5);
+    const login = await me();
+    const job: AutoJob = { id: String(++jobSeq), repo, status: "running", log: [], tasks: [], outcomes: [], startedAt: new Date().toISOString() };
+    autos.set(job.id, job);
+    (async () => {
+      job.log.push(`Looking for open tasks${repo ? ` in ${repo}` : ""}…`);
+      const tasks = await pickTasks(repo, login, max);
+      job.tasks = tasks.map((t) => `${t.owner}/${t.repo}#${t.number}`);
+      if (!tasks.length) job.log.push("No tasks are waiting for someone right now.");
+      else {
+        job.log.push(`Working on ${tasks.length} task(s) with ${agent.name}…`);
+        job.run = startTasks(tasks, login, agent, (ref, line) => job.log.push(`[${ref}] ${line}`), parallel);
+        job.outcomes = await job.run.done;
+      }
+      job.status = "done";
+    })().catch((e) => {
+      job.status = "error";
+      job.error = e instanceof Error ? e.message : String(e);
+    });
+    return { autoId: job.id };
+  }),
+
+  route("GET", "/api/autos/:id", async ([id], _b, url) => {
+    const job = getAuto(id);
+    const since = Number(url.searchParams.get("since") ?? 0);
+    const { run, log, ...rest } = job;
+    return { ...rest, log: log.slice(since), logLength: log.length };
+  }),
+
+  route("POST", "/api/autos/:id/stop", async ([id]) => {
+    await getAuto(id).run?.stop();
+    return { ok: true };
   }),
 
   // Maintainers: review every pull request in review for one project and fix merge conflicts.
@@ -163,6 +230,12 @@ const localRoutes: Route[] = [
 ];
 
 const routes = [...localRoutes, ...sharedRoutes];
+
+function getAuto(id: string): AutoJob {
+  const job = autos.get(id);
+  if (!job) throw new HttpError(404, "Not found.");
+  return job;
+}
 
 function getReview(id: string): ReviewJob {
   const job = reviews.get(id);
