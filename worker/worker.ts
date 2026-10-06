@@ -1,5 +1,5 @@
 import { HttpError, errorResponse, match, route, sharedRoutes, type Route } from "../src/api.js";
-import { me, withToken } from "../src/github.js";
+import { GitHubError, me, withToken } from "../src/github.js";
 import { connector, isConnectorPath } from "./connector.js";
 import { SESSION_COOKIE, SESSION_DAYS, base64url, cookie, openSession, redirect, sealSession, setCookie } from "./session.js";
 
@@ -59,7 +59,20 @@ async function apiRequest(req: Request, url: URL, env: Env): Promise<Response> {
 
     const m = match(hostedRoutes, req.method, url.pathname);
     if (!m) throw new HttpError(404, "Not found");
-    const data = await withToken(token, () => m.handler(m.params, body, url));
+    let data: unknown;
+    try {
+      data = await withToken(token, () => m.handler(m.params, body, url));
+    } catch (e) {
+      // GitHub no longer accepts the saved token (revoked or expired): sign the
+      // visitor out and answer as if they were signed out.
+      if (!(e instanceof GitHubError && e.status === 401)) throw e;
+      const res = await anonymousRequest(req, url, env).catch((err) => {
+        const { status, error } = errorResponse(err);
+        return json(status, { error });
+      });
+      res.headers.append("Set-Cookie", setCookie(SESSION_COOKIE, "", 0));
+      return res;
+    }
     return json(200, data);
   } catch (e) {
     const { status, error } = errorResponse(e);
