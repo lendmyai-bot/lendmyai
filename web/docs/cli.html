@@ -36,7 +36,6 @@ lendmyai login | logout</code></pre>
 <tr><td><code>--dry-run</code></td><td>Only list the tasks that would be picked up</td></tr>
 <tr><td><code>--agent</code>, <code>--agent-cmd</code></td><td>Choose the AI CLI, as with <code>work</code></td></tr>
 <tr><td><code>--model</code></td><td>Pick the model. It is passed to the agent (<code>work</code> takes it too) and recorded on the pull request</td></tr>
-<tr><td><code>--no-ponytail</code></td><td>Do not add the <a href="https://ponytail.dev">ponytail</a> rules (smallest working change, fewer tokens) to the agent's prompt. They are on by default; the Mac app has a tickbox for the same</td></tr>
 <tr><td><code>--yes</code></td><td>Skip the confirmation</td></tr></table>
 <p>Each task runs unattended in its own checkout. Claude can edit files and run build and test tools (npm, node, python, cargo, go, make and read-only git/ls/grep), so it installs dependencies and checks its own work, and you are never asked to approve anything. When a run ends, finished work becomes a pull request, partial work is checkpointed for the next contributor, and a run that changed nothing releases the task. Output for each task is saved in <code>~/.lendmyai/logs</code>. Press Ctrl+C to stop and release the tasks still running.</p>
 <div class="note warn">Claims expire after 24 hours. Batch mode lifts the one-task-at-a-time limit, so use a number you can review.</div>

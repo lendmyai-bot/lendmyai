@@ -9,7 +9,6 @@ import { checkWorkable } from "./contribute.js";
 import { pickTasks, startTasks, type AutoRun, type Outcome as AutoOutcome } from "./auto.js";
 import { planProject } from "./plan.js";
 import { createTask, type NewTask } from "./projects.js";
-import { readSettings, writeSettings } from "./settings.js";
 import { findPrs, mergePr, reviewPrs, type Outcome } from "./review.js";
 import { attachImages, begin, buildPrompt, complete, defaultChoice, finishAutomatically, review, type Choice, type Review, type Workspace } from "./work.js";
 
@@ -128,9 +127,6 @@ const localRoutes: Route[] = [
 
     return { jobId: job.id };
   }),
-
-  route("GET", "/api/settings", async () => readSettings()),
-  route("POST", "/api/settings", async (_p, body) => writeSettings({ ponytail: body?.ponytail })),
 
   // Owners: the AI on this computer proposes small tasks for a goal; the owner posts the ones they tick.
   route("POST", "/api/projects/:owner/:repo/plan", async ([o, r], body) => {

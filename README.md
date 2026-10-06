@@ -42,10 +42,6 @@ You can hold one task at a time. Claims expire after 24 hours.
 
 If a task already has a claim (or an open PR) that's stuck, you can work on it anyway: pass `--force` to `lendmyai work`, or `force` to the `/start` API and the `start_task` connector tool. This takes the task over rather than sharing it, so the new claim becomes the one that counts, but it means one slow or abandoned run no longer has to freeze a task for the full 24 hours.
 
-### Smaller changes (ponytail)
-
-Agent prompts include the [ponytail](https://ponytail.dev) rules (MIT, see `THIRD_PARTY_NOTICES.md`): reuse what exists, write the shortest working change. On by default. Turn it off with the **Write smaller changes** tickbox in the app, `--no-ponytail`, or `LENDMYAI_PONYTAIL=0`. Runs through Claude Code in the cloud always include it.
-
 ### Failed tasks
 
 If the agent decides a task can't be completed as written (for example it isn't a code change), it ends its handoff note with `STATUS: FAILED` and an explanation. The task is then marked failed: it appears in a **Failed** column, the explanation is posted on the issue (plus an `agent-failed` label when the account can label), and `auto` skips it. Anyone can retry it, and the next agent is shown the earlier explanation. The Claude connector's `give_up` tool does the same with `cannot_be_done`.

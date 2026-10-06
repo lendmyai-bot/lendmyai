@@ -233,14 +233,6 @@
   .plan-form textarea { flex: 1 1 320px; }
   .plan-item { display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; border-top: 1px solid var(--border); cursor: pointer; }
   .plan-item input { width: auto; margin-top: 4px; }
-  .lm-startbox { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
-  .lm-opts { font-size: 13px; color: var(--muted); }
-  .lm-opts summary { cursor: pointer; list-style: none; padding: 2px 4px; }
-  .lm-opts summary::-webkit-details-marker { display: none; }
-  .lm-opts summary::before { content: "⚙ "; }
-  .lm-opts[open] summary { color: var(--text); }
-  .lm-opts label { display: flex; gap: 8px; align-items: flex-start; margin-top: 6px; max-width: 320px; text-align: left; cursor: pointer; }
-  .lm-opts input { width: auto; margin-top: 3px; }
   .lm-try { max-width: 720px; }
   .lm-task { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 8px; box-shadow: var(--shadow); }
   .lm-task-main { display: flex; flex-direction: column; min-width: 0; color: var(--text); }
@@ -472,13 +464,12 @@ async function viewProjects() {
     <div class="row" id="projects-list" style="justify-content:space-between;flex-wrap:wrap;align-items:flex-end;margin-bottom:20px">
       <div><h1>Projects</h1><p class="sub" style="margin:0">Open-source projects looking for help. Pick one and lend your AI to its tasks.</p></div>
       <div class="row">
-        ${me.mode === "local" ? `<div class="lm-startbox"><button id="autoAll" class="primary">Let my AI work on tasks</button>${optionsHtml()}</div>` : ""}
+        ${me.mode === "local" ? `<button id="autoAll" class="primary">Let my AI work on tasks</button>` : ""}
         <a href="#/publish"><button${me.mode === "local" ? "" : ` class="primary"`}>Add your project</button></a>
       </div>
     </div>
     <div id="list">${loading("projects")}</div>`
   document.getElementById("autoAll")?.addEventListener("click", (e) => startAuto(e.target, {}));
-  mountSettings();
   const list = document.getElementById("list");
   try {
     const projects = await call("GET", "/api/projects");
@@ -619,7 +610,7 @@ async function viewProject(o, r) {
       <div><b>Plan tasks with your AI</b><span>Say what you want to achieve. Your AI reads the project and suggests small tasks; you tick the ones to post.</span></div>
       <div class="plan-form"><textarea id="planGoal" rows="2" maxlength="2000" placeholder="e.g. Make the signup flow work on phones"></textarea><button class="primary" id="planGo">Plan tasks</button></div>
       <div id="planOut"></div></div>` : ""}
-    ${me.mode === "local" && p.tasks.some((t) => t.state.kind === "available") ? `<div class="row" style="margin-bottom:16px"><div class="lm-startbox"><button id="autoRepo" class="primary">Let my AI work on this project</button>${optionsHtml()}</div></div>` : ""}
+    ${me.mode === "local" && p.tasks.some((t) => t.state.kind === "available") ? `<div class="row" style="margin-bottom:16px"><button id="autoRepo" class="primary">Let my AI work on this project</button></div>` : ""}
     <div class="stats">
       <div><b>${p.tasks.length - inReview - failed}</b><span>open tasks</span></div>
       <div><b>${inReview}</b><span>in review</span></div>
@@ -639,7 +630,6 @@ async function viewProject(o, r) {
   });
   document.getElementById("list")?.addEventListener("click", (e) => toggle(e.target, `/api/repos/${o}/${r}/init`, "Project listed"));
   document.getElementById("autoRepo")?.addEventListener("click", (e) => startAuto(e.target, { repo: full }));
-  mountSettings();
   document.getElementById("reviewAll")?.addEventListener("click", async (e) => {
     e.target.disabled = true;
     try { const { reviewId } = await call("POST", `/api/projects/${o}/${r}/review`, {}); location.hash = `#/review/${reviewId}`; }
@@ -850,14 +840,7 @@ async function viewTask(o, r, n) {
       action = `
         ${forcedBanner}
         ${s.handoff ? `<div class="banner warn">Claude will continue from ${esc(personName(s.handoff))}'s earlier work.</div>` : ""}
-        <div id="doTask">${doTaskHtml(t)}</div>
-        <details class="advanced">
-          <summary>Other ways to help</summary>
-          <p class="fine" style="margin-bottom:10px">With GitHub and Claude Pro or Max, Claude Code in the cloud can also run the project's tests.</p>
-          ${signedOut() ? signInButton("Sign in with GitHub", "") : `<button id="start" style="width:100%">Start with Claude Code (cloud)</button>`}
-          <p class="fine"><a href="${esc(ADD_CONNECTOR_URL)}" target="_blank" rel="noopener">Add lendmyai to Claude manually</a></p>
-          <p class="fine">Developers can also run it on their own computer: <code>npx lendmyai</code></p>
-        </details>`;
+        <div id="doTask">${doTaskHtml(t)}</div>`;
     }
   } else if (t.jobId) {
     action = `<div class="banner info">An agent is running on this task.</div><a href="#/run/${t.jobId}"><button class="primary">View run</button></a>`;
@@ -878,8 +861,7 @@ async function viewTask(o, r, n) {
             ? `<div class="field" style="margin:0"><label for="agent">AI</label><select id="agent">${me.agents.map((a) => `<option>${esc(a)}</option>`).join("")}</select></div>`
             : `<input type="hidden" id="agent" value="${esc(me.agents[0])}">`}
           <button class="primary big" id="run" style="width:100%">${mine ? "Continue" : "Let my AI do this task"}</button>
-          <p class="fine" style="text-align:center;margin:0">Works on this computer. The result goes to the project owner automatically.</p>
-          ${optionsHtml()}`
+          <p class="fine" style="text-align:center;margin:0">Works on this computer. The result goes to the project owner automatically.</p>`
         : `<div class="banner warn">No AI found on this computer. Install Claude Code, Codex or Gemini CLI.</div>`}
         <details class="advanced"><summary>Run in a terminal instead</summary>
           <div class="cmd" style="margin-top:8px"><code>${esc(command)}</code><button id="copy">Copy</button></div>
@@ -948,7 +930,6 @@ async function viewTask(o, r, n) {
   document.getElementById("addImages")?.addEventListener("click", () => document.getElementById("noteFile").click());
   document.getElementById("noteFile")?.addEventListener("change", (e) => { addImageFiles(e.target.files); e.target.value = ""; });
   document.getElementById("attemptNote")?.addEventListener("paste", (e) => addImageFiles([...(e.clipboardData?.files ?? [])]));
-  mountSettings();
   document.getElementById("saveNote")?.addEventListener("click", async (e) => {
     const text = document.getElementById("attemptNote").value.trim();
     if (!text && !noteImgs.length) return toast("Write a short note first.");
@@ -1037,32 +1018,6 @@ function timeline(events, o, r) {
     const note = ev.kind === "handoff" ? ev.text.split("\n").slice(1).join("\n").trim() : ev.kind === "failed" || ev.kind === "note" ? ev.text.split("\n").slice(1).join("\n").trim() : "";
     return `<li>${label(ev)}<div class="when">${ago(ev.at)}</div>${note ? `<div class="note md">${md(note)}</div>` : ""}</li>`;
   }).join("")}</ul>`;
-}
-
-// ---------- settings ----------
-/** A small, closed "Options" fold next to a start button, so it never gets in the way of the one click. */
-const optionsHtml = () => me.mode !== "local" ? "" : `
-  <details class="lm-opts"><summary>Options</summary>
-    <label><input type="checkbox" class="js-ponytail" disabled><span><b>Write smaller changes</b> <span class="fine">Fewer tokens, shorter diffs (<a href="https://ponytail.dev" target="_blank" rel="noopener">ponytail</a>)</span></span></label>
-  </details>`;
-
-async function mountSettings() {
-  const boxes = [...document.querySelectorAll(".js-ponytail")];
-  if (!boxes.length) return;
-  try {
-    const { ponytail } = await call("GET", "/api/settings");
-    for (const box of boxes) {
-      box.checked = ponytail;
-      box.disabled = false;
-      box.addEventListener("change", async () => {
-        try {
-          await call("POST", "/api/settings", { ponytail: box.checked });
-          boxes.forEach((b) => (b.checked = box.checked));
-          toast(box.checked ? "Smaller changes: on" : "Smaller changes: off");
-        } catch (e) { toast(e.message); box.checked = !box.checked; }
-      });
-    }
-  } catch { boxes.forEach((b) => b.closest(".lm-opts")?.remove()); }
 }
 
 // ---------- let my AI work on tasks ----------
