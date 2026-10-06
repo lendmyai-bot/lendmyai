@@ -70,6 +70,9 @@ function projectSummary(r: any, openTasks: number) {
     avatar: r.owner?.avatar_url ?? "",
     url: r.html_url,
     openTasks,
+    // ISO timestamps; the Projects page uses them for its "Newest" sort.
+    createdAt: r.created_at ?? "",
+    updatedAt: r.updated_at ?? "",
   };
 }
 
