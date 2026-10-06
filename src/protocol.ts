@@ -8,6 +8,23 @@ export const TASK_LABEL = "agent-task";
 export const REPO_TOPIC = "lendmyai";
 export const CLAIM_HOURS = 24;
 
+// Priority is stored as a GitHub label, like the task label itself, so it
+// shows up and can be edited anywhere GitHub labels can (issue page, API, CLI).
+export type Priority = "high" | "medium" | "low";
+export const PRIORITIES: Priority[] = ["high", "medium", "low"];
+export const PRIORITY_LABELS: Record<Priority, string> = { high: "priority: high", medium: "priority: medium", low: "priority: low" };
+const PRIORITY_RANK: Record<Priority, number> = { high: 3, medium: 2, low: 1 };
+
+/** The highest-priority label an issue carries, if any. */
+export function priorityOf(labels: string[]): Priority | undefined {
+  return PRIORITIES.find((p) => labels.includes(PRIORITY_LABELS[p]));
+}
+
+/** Sort key: higher priority first, no priority last. */
+export function priorityRank(p?: Priority): number {
+  return p ? PRIORITY_RANK[p] : 0;
+}
+
 /**
  * GitHub account that acts for contributors without GitHub (they connect
  * through Claude). Its markers count for the contributor named in the marker,

@@ -84,7 +84,7 @@ async function main(): Promise<void> {
     case "tasks": {
       const tasks = await listTasks(arg);
       if (!tasks.length) return console.log("No open agent tasks found.");
-      for (const t of tasks) console.log(`${t.ref.padEnd(40)} ${describeState(t.state).padEnd(34)} ${t.title}`);
+      for (const t of tasks) console.log(`${t.ref.padEnd(40)} ${describeState(t.state).padEnd(34)} ${(t.priority ?? "").padEnd(7)} ${t.title}`);
       return;
     }
     case "work":

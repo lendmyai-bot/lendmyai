@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { BOT_LOGIN, TASK_LABEL, checkApproval, computeState, marker, parseIssueRef, parseMarker, type ApprovalIssue, type Comment } from "./protocol.js";
+import {
+  BOT_LOGIN, PRIORITY_LABELS, TASK_LABEL, checkApproval, computeState, marker, parseIssueRef, parseMarker, priorityOf, priorityRank,
+  type ApprovalIssue, type Comment,
+} from "./protocol.js";
 
 const NOW = new Date("2026-10-05T12:00:00Z");
 const LATER = "2026-10-06T12:00:00Z";
@@ -177,4 +180,16 @@ test("a failed marker from the holder marks the task failed and keeps the reason
   const retry = computeState([claim("alice", "10:00"), failed, claim("bob", "10:10")], NOW);
   assert.equal(retry.kind === "claimed" && retry.user, "bob");
   assert.equal(retry.failure?.user, "alice");
+});
+
+test("priorityOf picks the highest-priority label present, ignoring unrelated labels", () => {
+  assert.equal(priorityOf([TASK_LABEL, PRIORITY_LABELS.low]), "low");
+  assert.equal(priorityOf([PRIORITY_LABELS.low, PRIORITY_LABELS.high]), "high");
+  assert.equal(priorityOf([TASK_LABEL]), undefined);
+});
+
+test("priorityRank orders high above medium above low above none", () => {
+  assert.ok(priorityRank("high") > priorityRank("medium"));
+  assert.ok(priorityRank("medium") > priorityRank("low"));
+  assert.ok(priorityRank("low") > priorityRank(undefined));
 });

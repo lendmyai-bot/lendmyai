@@ -283,6 +283,12 @@ async function loadPlanButton(full) {
 const splitRef = (ref) => { const m = /^(.+?)\/(.+?)#(\d+)$/.exec(ref); return m ? [m[1], m[2], m[3]] : []; };
 const taskHref = (ref) => `#/task/${splitRef(ref).join("/")}`;
 
+function priorityPill(priority) {
+  if (!priority) return "";
+  const cls = { high: "danger", medium: "warn", low: "" }[priority] ?? "";
+  return `<span class="pill ${cls}">${esc(priority)}</span>`;
+}
+
 function statePill(s) {
   if (s.kind === "available") return s.handoff ? `<span class="pill warn">resumable · ${esc(personName(s.handoff))}</span>` : `<span class="pill ok">available</span>`;
   if (s.kind === "failed") return `<span class="pill danger">failed</span>`;
@@ -518,7 +524,7 @@ function card(t, showRepo) {
   return `<a class="card" href="${taskHref(t.ref)}">
     <div class="ref">${esc(showRepo ? t.ref : "#" + t.ref.split("#")[1])}</div>
     <div class="title">${esc(t.title)}</div>
-    ${statePill(t.state)}
+    ${priorityPill(t.priority)}${statePill(t.state)}
   </a>`;
 }
 
@@ -618,7 +624,7 @@ async function viewTask(o, r, n) {
     <a class="back" href="${projectHref(o + "/" + r)}">← ${esc(o)}/${esc(r)}</a>
     <div class="layout">
       <div>
-        <div class="row" style="flex-wrap:wrap;margin-bottom:4px"><a href="${esc(t.url)}" target="_blank" rel="noopener" class="mono">${esc(t.ref)}</a>${statePill(s)}</div>
+        <div class="row" style="flex-wrap:wrap;margin-bottom:4px"><a href="${esc(t.url)}" target="_blank" rel="noopener" class="mono">${esc(t.ref)}</a>${priorityPill(t.priority)}${statePill(s)}</div>
         <h1>${esc(t.title)}</h1>
         <div style="height:12px"></div>
         ${failedBanner}
@@ -932,6 +938,14 @@ async function viewNewTask(o, r) {
         <div class="field"><label for="done">Done when</label><textarea id="done" placeholder="- Toggle persists across reloads&#10;- npm test passes"></textarea>
           <div class="hint">Clear acceptance criteria are the best predictor of a mergeable PR.</div></div>
         <div class="field"><label for="notes">Notes <span class="sub">(optional)</span></label><textarea id="notes" placeholder="Relevant files, constraints, things to avoid."></textarea></div>
+        <div class="field"><label for="priority">Priority <span class="sub">(optional)</span></label>
+          <select id="priority">
+            <option value="">None</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+          <div class="hint">Open tasks are shown with the highest priority first.</div></div>
         <button class="primary" type="submit">Publish task</button>
       </form>
       <aside class="panel">
@@ -954,6 +968,7 @@ async function viewNewTask(o, r) {
         goal: document.getElementById("goal").value,
         doneWhen: document.getElementById("done").value,
         notes: document.getElementById("notes").value,
+        priority: document.getElementById("priority").value,
       });
       toast("Task published");
       location.hash = taskHref(res.ref);

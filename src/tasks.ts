@@ -6,7 +6,10 @@ import {
   computeState,
   isTrusted,
   parseMarker,
+  priorityOf,
+  priorityRank,
   type Comment,
+  type Priority,
   type TaskState,
 } from "./protocol.js";
 
@@ -27,6 +30,7 @@ export interface Task {
   blocked?: string;
   /** Concerns the contributor should review before running their agent. */
   warnings: string[];
+  priority?: Priority;
 }
 
 const ISSUE_QUERY = `
@@ -71,6 +75,7 @@ export async function loadTask(owner: string, repo: string, number: number): Pro
     state,
     blocked,
     warnings,
+    priority: priorityOf(issue.labels.nodes.map((l: { name: string }) => l.name)),
   };
 }
 
@@ -89,9 +94,15 @@ export interface TaskSummary {
   title: string;
   url: string;
   state: TaskState;
+  priority?: Priority;
 }
 
-/** Lists open agent tasks, either in one repo or across all repos with the lendmyai topic. */
+/**
+ * Lists open agent tasks, either in one repo or across all repos with the
+ * lendmyai topic. Sorted by priority (highest first) so the most important
+ * work surfaces first, both to contributors and to `auto`/`find_tasks` when
+ * picking up several tasks at once.
+ */
 export async function listTasks(repoFilter?: string, limit = 30): Promise<TaskSummary[]> {
   const q = [`is:issue`, `is:open`, `label:${TASK_LABEL}`, repoFilter ? `repo:${repoFilter}` : `archived:false`].join(" ");
   const res = await api<any>("GET", `/search/issues?q=${encodeURIComponent(q)}&sort=updated&per_page=${limit}`);
@@ -110,7 +121,8 @@ export async function listTasks(repoFilter?: string, limit = 30): Promise<TaskSu
     }
     const [owner, repo] = fullName.split("/");
     const comments = await getComments(owner, repo, item.number);
-    out.push({ ref: `${fullName}#${item.number}`, title: item.title, url: item.html_url, state: await stateOf(owner, repo, comments) });
+    const priority = priorityOf((item.labels ?? []).map((l: { name: string }) => l.name));
+    out.push({ ref: `${fullName}#${item.number}`, title: item.title, url: item.html_url, state: await stateOf(owner, repo, comments), priority });
   }
-  return out;
+  return out.sort((a, b) => priorityRank(b.priority) - priorityRank(a.priority));
 }

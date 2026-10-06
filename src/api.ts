@@ -1,5 +1,5 @@
 import { GitHubError, api, isAnonymous, me, postComment } from "./github.js";
-import { REPO_TOPIC, TASK_LABEL, actorOf, marker, parseMarker, stripMarker } from "./protocol.js";
+import { PRIORITIES, REPO_TOPIC, TASK_LABEL, actorOf, marker, parseMarker, stripMarker } from "./protocol.js";
 import {
   branchFor, buildCloudPrompt, checkWorkable, claim, claudeCodeUrl, findPushedWork, headRepo, postHandoff, prepareBranch, release, submitPullRequest,
 } from "./contribute.js";
@@ -133,6 +133,7 @@ export const sharedRoutes: Route[] = [
       body: task.body,
       url: task.url,
       state: task.state,
+      priority: task.priority,
       blocked: task.blocked,
       warnings: task.warnings,
       canPush: !isAnonymous() && task.canPush,
@@ -200,7 +201,8 @@ export const sharedRoutes: Route[] = [
 
   route("POST", "/api/repos/:owner/:repo/tasks", async ([o, r], body) => {
     if (!String(body?.title ?? "").trim()) throw new HttpError(400, "Title is required.");
-    const issue = await createTask(`${o}/${r}`, { title: body.title, goal: body.goal, doneWhen: body.doneWhen, notes: body.notes });
+    const priority = PRIORITIES.includes(body?.priority) ? body.priority : undefined;
+    const issue = await createTask(`${o}/${r}`, { title: body.title, goal: body.goal, doneWhen: body.doneWhen, notes: body.notes, priority });
     return { ref: refOf(o, r, issue.number), url: issue.url };
   }),
 ];

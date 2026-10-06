@@ -4,7 +4,7 @@ import {
 import { api, withToken } from "./github.js";
 import { createTask, listProject, managedRepos } from "./projects.js";
 import { unseal } from "./oauth.js";
-import { parseIssueRef } from "./protocol.js";
+import { PRIORITIES, parseIssueRef } from "./protocol.js";
 import { deleteFile, listFiles, readFile, writeFile } from "./repofiles.js";
 import { listTasks, loadTask, maintainerNotes, type Task } from "./tasks.js";
 
@@ -144,6 +144,7 @@ export const TOOLS = [
               goal: { type: "string", description: "What should change and why, in plain language." },
               done_when: { type: "string", description: "Concrete checks that show the task is finished." },
               notes: { type: "string", description: "Optional: relevant files, constraints, things to avoid." },
+              priority: { type: "string", enum: ["high", "medium", "low"], description: "Optional: how urgent this task is. Open tasks are shown highest priority first." },
               depends_on: { type: "array", items: { type: "integer" }, description: "Optional: numbers (1-based) of earlier tasks in this list that must be done first." },
             },
             required: ["title", "goal", "done_when"],
@@ -284,7 +285,8 @@ const tools: Record<string, (args: any, ctx: Ctx) => Promise<string>> = {
         .filter((d: unknown) => Number.isInteger(d) && (d as number) >= 1 && (d as number) <= i)
         .map((d: number) => `#${created[d - 1].number}`);
       const notes = [deps.length ? `Do this after ${deps.join(", ")} is merged.` : "", typeof t.notes === "string" ? t.notes : ""].filter(Boolean).join("\n\n");
-      const issue = await createTask(project, { title: String(t.title ?? ""), goal: t.goal, doneWhen: t.done_when, notes });
+      const priority = PRIORITIES.includes(t.priority) ? t.priority : undefined;
+      const issue = await createTask(project, { title: String(t.title ?? ""), goal: t.goal, doneWhen: t.done_when, notes, priority });
       created.push({ ...issue, title: String(t.title) });
     }
     return [
@@ -301,7 +303,7 @@ const tools: Record<string, (args: any, ctx: Ctx) => Promise<string>> = {
     const tasks = (await listTasks(typeof args.project === "string" && args.project ? args.project : undefined))
       .filter((t) => t.state.kind === "available");
     if (!tasks.length) return "There are no open tasks right now.";
-    return `Open tasks:\n${tasks.map((t) => `- ${t.ref}: ${t.title}`).join("\n")}\n\nAsk the person which one to do, then call start_task.`;
+    return `Open tasks, highest priority first:\n${tasks.map((t) => `- ${t.ref}: ${t.title}${t.priority ? ` (${t.priority} priority)` : ""}`).join("\n")}\n\nAsk the person which one to do, then call start_task.`;
   },
 
   async start_task(args, ctx) {
