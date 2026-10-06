@@ -83,6 +83,15 @@ function projectSummary(r: any, openTasks: number) {
 }
 
 export const sharedRoutes: Route[] = [
+  // Shown on the homepage to showcase lendmyai's track record.
+  route("GET", "/api/stats", async () => {
+    const repos = await api<any>("GET", `/search/repositories?q=${encodeURIComponent(`topic:${REPO_TOPIC} is:public archived:false`)}&per_page=100`);
+    if (!repos.items.length) return { completedTasks: 0 };
+    const repoQ = repos.items.map((r: any) => `repo:${r.full_name}`).join(" ");
+    const closed = await api<any>("GET", `/search/issues?q=${encodeURIComponent(`is:issue is:closed label:${TASK_LABEL} ${repoQ}`)}&per_page=1`);
+    return { completedTasks: closed.total_count ?? 0 };
+  }, { public: true }),
+
   route("GET", "/api/projects", async () => {
     const [repos, issues] = await Promise.all([
       api<any>("GET", `/search/repositories?q=${encodeURIComponent(`topic:${REPO_TOPIC} is:public archived:false`)}&sort=updated&per_page=60`),

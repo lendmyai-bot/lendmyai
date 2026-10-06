@@ -350,6 +350,7 @@ async function viewProjects() {
       <a href="#/publish"><button class="primary">Add your project</button></a>
     </div>
     <div id="list">${loading("projects")}</div>`;
+  if (signedOut()) loadSolvedCounter();
   const list = document.getElementById("list");
   try {
     const projects = await call("GET", "/api/projects");
@@ -1077,12 +1078,25 @@ function heroHtml(browseLink) {
       <p>Have Claude? Pick a task a project owner posted, and Claude does the work for you right in your Claude chat. No coding or GitHub account needed. The owner reviews the result.</p>
       ${browseLink ? `<button class="primary big" onclick="document.getElementById('projects-list').scrollIntoView({ behavior: 'smooth' })">Browse projects</button>` : signInButton("Sign in with GitHub", "primary big")}
       <p class="fine">Free. Works with any Claude plan. Only project owners need GitHub.</p>
+      <p class="fine" id="solved-counter"><span class="spinner"></span></p>
     </section>
     <section class="how">
       <div class="panel"><div class="num">1</div><h2>Owners add projects</h2><p>Anyone with a project on GitHub can list it and post tasks they want done, each with a clear "done when".</p></div>
       <div class="panel"><div class="num">2</div><h2>You lend your AI</h2><p>Pick a task and click <b>Open Claude</b>. Claude does the work in your normal Claude chat, with any Claude plan.</p></div>
       <div class="panel"><div class="num">3</div><h2>Owner reviews</h2><p>The result goes to the owner as a suggested change. They decide what gets in.</p></div>
     </section>`;
+}
+
+/** Fills in the "X tasks solved" line on the homepage hero once the count is known. */
+async function loadSolvedCounter() {
+  const el = document.getElementById("solved-counter");
+  if (!el) return;
+  try {
+    const { completedTasks } = await call("GET", "/api/stats");
+    el.textContent = `${completedTasks.toLocaleString()} task${completedTasks === 1 ? "" : "s"} solved by lendmyai so far`;
+  } catch {
+    el.remove();
+  }
 }
 
 function signInPanel(what) {
@@ -1098,6 +1112,7 @@ function viewLanding() {
   document.querySelector("nav").hidden = true;
   document.getElementById("who").innerHTML = signInButton("Sign in", "");
   main.innerHTML = heroHtml(false);
+  loadSolvedCounter();
 }
 
 // ---------- boot ----------
