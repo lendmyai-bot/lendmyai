@@ -319,6 +319,7 @@ async function render() {
     if (view === "project") return await viewProject(parts[1], parts[2]);
     if (view === "run") return await viewRun(parts[1]);
     if (view === "review") return await viewReview(parts[1]);
+    if (view === "auto") return await viewAuto(parts[1]);
     if (view === "publish") return await viewPublish();
     if (view === "runs") return await viewRuns();
     return await viewProjects();
@@ -347,10 +348,14 @@ async function viewProjects() {
     ${signedOut() ? heroHtml(true) : ""}
     <div class="row" id="projects-list" style="justify-content:space-between;flex-wrap:wrap;align-items:flex-end;margin-bottom:20px;${signedOut() ? "margin-top:40px" : ""}">
       <div><h1>Projects</h1><p class="sub" style="margin:0">Open-source projects looking for help. Pick one and lend your AI to its tasks.</p></div>
-      <a href="#/publish"><button class="primary">Add your project</button></a>
+      <div class="row">
+        ${me.mode === "local" ? `<button id="autoAll" class="primary">Let my AI work on tasks</button>` : ""}
+        <a href="#/publish"><button${me.mode === "local" ? "" : ` class="primary"`}>Add your project</button></a>
+      </div>
     </div>
     <div id="list">${loading("projects")}</div>`;
   if (signedOut()) loadSolvedCounter();
+  document.getElementById("autoAll")?.addEventListener("click", (e) => startAuto(e.target, {}));
   const list = document.getElementById("list");
   try {
     const projects = await call("GET", "/api/projects");
@@ -487,6 +492,7 @@ async function viewProject(o, r) {
     ${p.description ? `<p class="lead">${esc(p.description)}</p>` : ""}
     ${!p.listed ? `<div class="banner warn">This project is not listed, so it doesn't appear on the Projects page.</div>` : ""}
     ${p.canManage && me.mode === "hosted" ? `<div class="panel plan"><div><b>Plan tasks with Claude</b><span>Tell Claude what you want to achieve. It reads your project, suggests small tasks, and posts them once you approve.</span></div><div id="plan"><button class="primary" disabled><span class="spinner"></span> Plan tasks with Claude</button></div></div>` : ""}
+    ${me.mode === "local" && p.tasks.some((t) => t.state.kind === "available") ? `<div class="row" style="margin-bottom:16px"><button id="autoRepo" class="primary">Let my AI work on this project</button><span class="fine">Claims open tasks and works on them on this computer.</span></div>` : ""}
     <div class="stats">
       <div><b>${p.tasks.length - inReview - failed}</b><span>open tasks</span></div>
       <div><b>${inReview}</b><span>in review</span></div>
@@ -505,6 +511,7 @@ async function viewProject(o, r) {
     if (confirm("Remove this project from lendmyai? Its tasks stay on GitHub but won't be listed.")) toggle(e.target, `/api/projects/${o}/${r}/unlist`, "Project unlisted");
   });
   document.getElementById("list")?.addEventListener("click", (e) => toggle(e.target, `/api/repos/${o}/${r}/init`, "Project listed"));
+  document.getElementById("autoRepo")?.addEventListener("click", (e) => startAuto(e.target, { repo: full }));
   document.getElementById("reviewAll")?.addEventListener("click", async (e) => {
     e.target.disabled = true;
     try { const { reviewId } = await call("POST", `/api/projects/${o}/${r}/review`, {}); location.hash = `#/review/${reviewId}`; }
@@ -810,6 +817,63 @@ function timeline(events, o, r) {
     const note = ev.kind === "handoff" ? ev.text.split("\n").slice(1).join("\n").trim() : ev.kind === "failed" ? ev.text.split("\n").slice(1).join("\n").trim() : "";
     return `<li>${label(ev)}<div class="when">${ago(ev.at)}</div>${note ? `<div class="note md">${md(note)}</div>` : ""}</li>`;
   }).join("")}</ul>`;
+}
+
+// ---------- let my AI work on tasks ----------
+async function startAuto(btn, body) {
+  if (!confirm("Your AI will claim open tasks and work on them on this computer. Finished work is sent to the project owner as a pull request, and you can stop at any time. Start?")) return;
+  btn.disabled = true;
+  try { const { autoId } = await call("POST", "/api/auto", body); location.hash = `#/auto/${autoId}`; }
+  catch (err) { toast(err.message); btn.disabled = false; }
+}
+
+async function viewAuto(id) {
+  main.innerHTML = loading("progress");
+  let job = await call("GET", `/api/autos/${id}?since=0`);
+  main.innerHTML = `
+    <a class="back" href="#/">← Projects</a>
+    <div class="row" style="justify-content:space-between;flex-wrap:wrap;margin-bottom:12px">
+      <h1>Your AI is working</h1>
+      <div class="row"><span id="status"></span><button id="stop" class="danger" hidden>Stop</button></div>
+    </div>
+    <div id="outcomes"></div>
+    <pre class="term" id="term" style="height:340px"></pre>`;
+  const term = document.getElementById("term");
+  const box = document.getElementById("outcomes");
+  const stopBtn = document.getElementById("stop");
+  stopBtn.onclick = async () => {
+    if (confirm("Stop? Tasks still running are released so someone else can take them.")) { stopBtn.disabled = true; await call("POST", `/api/autos/${id}/stop`).catch((e) => toast(e.message)); }
+  };
+  const append = (lines) => {
+    const stick = term.scrollTop + term.clientHeight >= term.scrollHeight - 30;
+    for (const l of lines) {
+      const span = document.createElement("span");
+      span.className = /→/.test(l) ? "tool" : /✓|Pull request opened/.test(l) ? "ok" : /failed|error/i.test(l) ? "err" : "";
+      span.textContent = l + "\n";
+      term.appendChild(span);
+    }
+    if (stick) term.scrollTop = term.scrollHeight;
+  };
+  const show = (j) => {
+    document.getElementById("status").innerHTML = j.status === "running" ? `<span class="spinner"></span> Working…` : j.status === "error" ? `<span class="pill danger">error</span>` : `<span class="pill ok">done</span>`;
+    stopBtn.hidden = j.status !== "running";
+    box.innerHTML = (j.error ? errorBox(j.error) : "") + (j.outcomes.length ? `
+      <div class="panel" style="margin-bottom:16px"><table>
+        <tr><th>Task</th><th>Result</th></tr>
+        ${j.outcomes.map((o) => `<tr><td class="mono">${esc(o.ref)}</td><td>${esc(o.result)}</td></tr>`).join("")}
+      </table></div>` : "");
+  };
+  append(job.log);
+  show(job);
+  let seen = job.logLength;
+  pollTimer = setInterval(async () => {
+    if (!location.hash.startsWith(`#/auto/${id}`)) return clearInterval(pollTimer);
+    try {
+      const j = await call("GET", `/api/autos/${id}?since=${seen}`);
+      append(j.log); seen = j.logLength; job = j; show(j);
+      if (j.status !== "running") clearInterval(pollTimer);
+    } catch { clearInterval(pollTimer); }
+  }, 1500);
 }
 
 // ---------- review all ----------

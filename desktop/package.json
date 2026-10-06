@@ -1,7 +1,7 @@
 {
   "name": "lendmyai-desktop",
-  "version": "0.1.0",
-  "description": "lendmyai for project owners on macOS: review all pull requests in one click.",
+  "version": "0.2.0",
+  "description": "lendmyai for macOS: lend your AI to open projects, or review all pull requests, without a terminal.",
   "private": true,
   "main": "main.cjs",
   "scripts": {
@@ -13,10 +13,19 @@
   "build": {
     "appId": "com.lendmyai.owner",
     "productName": "lendmyai",
-    "files": ["main.cjs", "bundle/**", "package.json"],
+    "files": [
+      "main.cjs",
+      "bundle/**",
+      "build/icon.png",
+      "package.json"
+    ],
     "mac": {
       "category": "public.app-category.developer-tools",
-      "target": ["dmg", "zip"]
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "icon": "build/icon.icns"
     }
   },
   "devDependencies": {

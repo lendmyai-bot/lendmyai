@@ -64,11 +64,15 @@ Sign in at [lendmyai.com](https://lendmyai.com) and click **Add project**. Pick 
 
 A project is simply a public repo with the `lendmyai` topic. **Unlist** removes the topic, and your tasks stay on GitHub.
 
-### Mac app for owners: review all pull requests
+### Mac app (no terminal)
+
+`desktop/` is a macOS app (Apple Silicon, Electron) for everyone: contributors click **Let my AI work on tasks** (same as `lendmyai auto`, with live progress and a Stop button), and owners get **Review all** below. It opens the local app in its own window, shows the GitHub sign-in code in a dialog, and uses the website's icon. Build it with `cd desktop && npm install && npm run dist`; the `.dmg` appears in `desktop/dist/`. It is not code-signed yet, so on first open right-click the app and choose **Open**.
+
+### Review all pull requests (owners)
 
 `lendmyai review [owner/repo]` reviews every pull request in review, fixes merge conflicts, posts each review on the PR, and lists the ones ready to merge. The reviewer gets no shell, because pull request code comes from strangers; CI results decide whether tests pass. Merging needs you at a terminal (`--yes` does not merge).
 
-The same thing is a macOS app in `desktop/` (Apple Silicon, Electron). It opens the local app in its own window: on a project page, **Review all** reviews and fixes conflicts, then **Merge N ready pull requests** merges the approved, CI-passing, conflict-free ones after a confirmation. Build it with `cd desktop && npm install && npm run dist`; the `.dmg` appears in `desktop/dist/`. It is not code-signed yet, so on first open right-click the app and choose **Open**.
+In the Mac app, **Review all** on a project page does the same, then **Merge N ready pull requests** merges the approved, CI-passing, conflict-free ones after a confirmation.
 
 ### Plan tasks with Claude
 
