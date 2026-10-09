@@ -18,12 +18,14 @@ export interface Agent {
   interactive(prompt: string): string[];
   /** Unattended run, restricted to file edits / sandboxed where the agent supports it. */
   headless(prompt: string): string[];
-  /** Optional headless variant with machine-readable progress, plus a formatter for each output line. */
   /** Flags that let an unattended run build and test: a fixed set of build tools and read-only commands. */
   shellArgs?(): string[];
   /** Extra flags that select the model, for agents that support them. */
   modelArgs?(model?: string): string[];
+  /** Optional headless variant with machine-readable progress, plus a formatter for each output line. */
   stream?: { args(prompt: string): string[]; format(line: string): string | null };
+  /** Whether the installed CLI supports `stream`. Without it, the plain headless command is used. */
+  streamSupported?(): boolean;
 }
 
 const CLAUDE_SHELL_TOOLS = ["npm", "npx", "node", "yarn", "pnpm", "python", "python3", "pip", "pytest", "cargo", "go", "make", "git status", "git diff", "git log", "ls", "cat", "grep"].map((c) => `Bash(${c}:*)`).join(",");
@@ -47,6 +49,12 @@ export const AGENTS: Agent[] = [
     interactive: (p) => [p],
     headless: (p) => ["exec", "--full-auto", p],
     modelArgs: (m) => (m ? ["-m", m] : []),
+    stream: {
+      args: (p) => ["exec", "--json", "--full-auto", p],
+      format: formatCodexEvent,
+    },
+    // Older Codex builds have no `--json`; those fall back to the plain headless run.
+    streamSupported: () => (spawnSync("codex", ["exec", "--help"], { encoding: "utf8" }).stdout ?? "").includes("--json"),
   },
   {
     name: "gemini",
@@ -109,10 +117,12 @@ export function resolveAgent(opts: { agent?: string; custom?: string; model?: st
     name: agent.name,
     model,
     command: (prompt, headless) => [agent.bin, headless ? [...extra, ...unattended, ...agent.headless(prompt)] : [...extra, ...agent.interactive(prompt)]],
-    streamCommand: (prompt) =>
-      agent.stream
-        ? { cmd: [agent.bin, [...extra, ...unattended, ...agent.stream.args(prompt)]], format: agent.stream.format }
-        : { cmd: [agent.bin, [...extra, ...unattended, ...agent.headless(prompt)]], format: (l) => l },
+    streamCommand: (prompt) => {
+      const stream = agent.stream && (agent.streamSupported?.() ?? true) ? agent.stream : undefined;
+      return stream
+        ? { cmd: [agent.bin, [...extra, ...unattended, ...stream.args(prompt)]], format: stream.format }
+        : { cmd: [agent.bin, [...extra, ...unattended, ...agent.headless(prompt)]], format: (l) => l };
+    },
   };
 }
 
@@ -180,4 +190,37 @@ function formatClaudeEvent(line: string): string | null {
     return `■ Agent finished (${ev.num_turns ?? "?"} turns${cost})${ev.is_error ? `: ${ev.result}` : ""}`;
   }
   return null;
+}
+
+/** Formats one `codex exec --json` event (JSONL) as a log line; non-JSON lines pass through unchanged. */
+function formatCodexEvent(line: string): string | null {
+  let ev: any;
+  try {
+    ev = JSON.parse(line);
+  } catch {
+    return line;
+  }
+  const clip = (s: unknown) => String(s ?? "").slice(0, 160);
+  const item = ev.item ?? {};
+  switch (ev.type) {
+    case "item.started":
+      // Tool and command steps are announced when they start; their results stay quiet.
+      if (item.type === "command_execution") return `→ shell ${clip(item.command)}`;
+      if (item.type === "mcp_tool_call") return `→ ${clip(`${item.server ?? "mcp"}${item.tool ? `.${item.tool}` : ""}`)}`;
+      if (item.type === "web_search") return `→ web_search ${clip(item.query)}`;
+      return null;
+    case "item.completed":
+      if (item.type === "agent_message") return item.text?.trim() || null;
+      if (item.type === "file_change") return `→ edit ${clip((item.changes ?? []).map((c: any) => c.path).join(", "))}`;
+      if (item.type === "error") return `✗ ${clip(item.message)}`;
+      return null;
+    case "turn.completed": {
+      const tokens = (ev.usage?.input_tokens ?? 0) + (ev.usage?.output_tokens ?? 0);
+      return `■ Agent finished (${tokens} tokens)`;
+    }
+    case "turn.failed":
+      return `■ Agent failed${ev.error?.message ? `: ${ev.error.message}` : ""}`;
+    default:
+      return null;
+  }
 }
