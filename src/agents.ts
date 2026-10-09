@@ -116,8 +116,24 @@ export function resolveAgent(opts: { agent?: string; custom?: string; model?: st
   };
 }
 
+/**
+ * On Windows, npm installs CLIs as `.cmd`/`.ps1` shims (e.g. `claude.cmd`).
+ * Node cannot execute those directly; they only run through cmd.exe, so the
+ * spawn needs `shell: true`, which in turn means the command and arguments
+ * must be joined into one quoted string. POSIX systems exec the binary
+ * directly and need no shell.
+ */
+const IS_WINDOWS = process.platform === "win32";
+
+/** Quotes each word for cmd.exe, so prompts with spaces survive the shell. */
+function winQuote(words: string[]): string {
+  return words.map((w) => `"${w.replace(/"/g, '\\"')}"`).join(" ");
+}
+
 export function runAgent(cmd: [string, string[]], cwd: string): number {
-  const res = spawnSync(cmd[0], cmd[1], { cwd, stdio: "inherit" });
+  const res = IS_WINDOWS
+    ? spawnSync(winQuote([cmd[0], ...cmd[1]]), { cwd, stdio: "inherit", shell: true })
+    : spawnSync(cmd[0], cmd[1], { cwd, stdio: "inherit" });
   if (res.error) throw res.error;
   return res.status ?? 1;
 }
@@ -128,7 +144,10 @@ export function streamAgent(
   cwd: string,
   onLine: (line: string) => void,
 ): { done: Promise<number>; kill(): void } {
-  const child = spawn(run.cmd[0], run.cmd[1], { cwd, stdio: ["ignore", "pipe", "pipe"] });
+  // See runAgent: Windows needs a shell to launch the `.cmd` shim.
+  const child = IS_WINDOWS
+    ? spawn(winQuote([run.cmd[0], ...run.cmd[1]]), { cwd, stdio: ["ignore", "pipe", "pipe"], shell: true })
+    : spawn(run.cmd[0], run.cmd[1], { cwd, stdio: ["ignore", "pipe", "pipe"] });
   const pipe = (stream: NodeJS.ReadableStream, format: (l: string) => string | null) => {
     let buf = "";
     const handle = (l: string) => {
