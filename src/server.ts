@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
-import { installedAgents, resolveAgent, streamAgent } from "./agents.js";
+import { AGENTS, installedAgents, resolveAgent, streamAgent } from "./agents.js";
 import { HttpError, errorResponse, match, refOf, route, sharedRoutes, type Route } from "./api.js";
 import { openBrowser } from "./auth.js";
 import { me } from "./github.js";
@@ -10,6 +10,7 @@ import { pickTasks, startTasks, type AutoRun, type Outcome as AutoOutcome } from
 import { planProject } from "./plan.js";
 import { createTask, type NewTask } from "./projects.js";
 import { findPrs, mergePr, reviewPrs, type Outcome } from "./review.js";
+import { readSettings, writeSettings } from "./settings.js";
 import { attachImages, begin, buildPrompt, complete, defaultChoice, finishAutomatically, review, type Choice, type Review, type Workspace } from "./work.js";
 
 // Local app: the shared website API plus agent runs on this computer. It binds
@@ -77,6 +78,20 @@ const sharedTaskDetail = match(sharedRoutes, "GET", "/api/tasks/o/r/1")!.handler
 const localRoutes: Route[] = [
   route("GET", "/api/me", async () => ({ login: await me(), agents: installedAgents(), mode: "local" })),
 
+  // The contributor's preferred agent and model, used whenever a run doesn't name one.
+  route("GET", "/api/settings", async () => readSettings()),
+
+  route("POST", "/api/settings", async (_p, body) => {
+    const patch: { agent?: string; model?: string } = {};
+    if (body?.agent !== undefined) {
+      const agent = String(body.agent ?? "").trim();
+      if (agent && !AGENTS.some((a) => a.name === agent)) throw new HttpError(400, `Unknown agent "${agent}". Known: ${AGENTS.map((a) => a.name).join(", ")}.`);
+      patch.agent = agent;
+    }
+    if (body?.model !== undefined) patch.model = String(body.model ?? "");
+    return writeSettings(patch);
+  }),
+
   // Same as the shared task detail, plus the agent run in progress on this computer.
   route("GET", "/api/tasks/:owner/:repo/:n", async (p, b, u) => ({
     ...(await sharedTaskDetail(p, b, u) as object),
@@ -91,7 +106,7 @@ const localRoutes: Route[] = [
     await checkWorkable(task, login, { force }).catch((e) => {
       throw new HttpError(400, e.message);
     });
-    const agent = resolveAgent({ agent: body?.agent || undefined });
+    const agent = resolveAgent({ agent: body?.agent || undefined, model: body?.model || undefined });
 
     const job: Job = { id: String(++jobSeq), ref, agent: agent.name, status: "starting", log: [], startedAt: new Date().toISOString() };
     jobs.set(job.id, job);
@@ -134,7 +149,7 @@ const localRoutes: Route[] = [
     const goal = String(body?.goal ?? "").trim();
     if (!goal) throw new HttpError(400, "Say what you want to achieve first.");
     if ([...plans.values()].some((j) => j.repo === repo && j.status === "running")) throw new HttpError(409, "A plan is already being made for this project.");
-    const agent = resolveAgent({ agent: body?.agent || undefined, shell: false });
+    const agent = resolveAgent({ agent: body?.agent || undefined, model: body?.model || undefined, shell: false });
     const job: PlanJob = { id: String(++jobSeq), repo, status: "running", log: [], tasks: [], created: [] };
     plans.set(job.id, job);
     planProject(repo, goal, agent, (line) => job.log.push(line))
@@ -172,7 +187,7 @@ const localRoutes: Route[] = [
   route("POST", "/api/auto", async (_p, body) => {
     const repo = typeof body?.repo === "string" && body.repo.includes("/") ? body.repo : undefined;
     if ([...autos.values()].some((j) => j.status === "running")) throw new HttpError(409, "AI is already working on tasks.");
-    const agent = resolveAgent({ agent: body?.agent || undefined });
+    const agent = resolveAgent({ agent: body?.agent || undefined, model: body?.model || undefined });
     const max = Math.min(Math.max(Number(body?.max ?? 3), 1), 10);
     const parallel = Math.min(Math.max(Number(body?.parallel ?? 2), 1), 5);
     const login = await me();
@@ -212,7 +227,7 @@ const localRoutes: Route[] = [
   route("POST", "/api/projects/:owner/:repo/review", async ([o, r], body) => {
     const repo = `${o}/${r}`;
     if ([...reviews.values()].some((j) => j.repo === repo && j.status === "running")) throw new HttpError(409, "A review is already running for this project.");
-    const agent = resolveAgent({ agent: body?.agent || undefined, shell: false });
+    const agent = resolveAgent({ agent: body?.agent || undefined, model: body?.model || undefined, shell: false });
     const job: ReviewJob = { id: String(++jobSeq), repo, status: "running", log: [], outcomes: [], startedAt: new Date().toISOString() };
     reviews.set(job.id, job);
     (async () => {
