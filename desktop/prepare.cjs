@@ -6,7 +6,8 @@ const { join } = require("node:path");
 
 const root = join(__dirname, "..");
 const out = join(__dirname, "bundle");
-execFileSync("npm", ["run", "build"], { cwd: root, stdio: "inherit" });
+// On Windows npm is a .cmd file, which can only be started through a shell.
+execFileSync("npm", ["run", "build"], { cwd: root, stdio: "inherit", shell: process.platform === "win32" });
 rmSync(out, { recursive: true, force: true });
 mkdirSync(out, { recursive: true });
 cpSync(join(root, "dist"), join(out, "dist"), { recursive: true, filter: (src) => !src.endsWith(".test.js") });
