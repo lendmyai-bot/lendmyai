@@ -860,6 +860,7 @@ async function viewTask(o, r, n) {
           ${me.agents.length > 1
             ? `<div class="field" style="margin:0"><label for="agent">AI</label><select id="agent">${me.agents.map((a) => `<option>${esc(a)}</option>`).join("")}</select></div>`
             : `<input type="hidden" id="agent" value="${esc(me.agents[0])}">`}
+          <div class="field" style="margin:0"><label for="model">Model <span class="sub">(optional)</span></label><input id="model" placeholder="e.g. opus" autocomplete="off" value="${esc(store.get("run.model"))}"></div>
           <button class="primary big" id="run" style="width:100%">${mine ? "Continue" : "Let my AI do this task"}</button>
           <p class="fine" style="text-align:center;margin:0">Works on this computer. The result goes to the project owner automatically.</p>`
         : `<div class="banner warn">No AI found on this computer. Install Claude Code, Codex or Gemini CLI.</div>`}
@@ -939,12 +940,15 @@ async function viewTask(o, r, n) {
   });
   document.getElementById("run")?.addEventListener("click", async (e) => {
     const agent = document.getElementById("agent").value;
+    // Optional: an empty field means the agent's own default model. Remembered for next time.
+    const model = document.getElementById("model")?.value.trim() ?? "";
+    store.set("run.model", model);
     e.target.disabled = true; e.target.innerHTML = `<span class="spinner"></span> Starting…`;
     try {
       // A note typed above is saved first, so this attempt reads it.
       const pending = document.getElementById("attemptNote")?.value.trim();
       if (pending || noteImgs.length) await call("POST", `/api/tasks/${o}/${r}/${n}/note`, noteBody(pending ?? ""));
-      const { jobId } = await call("POST", `/api/tasks/${o}/${r}/${n}/run`, { agent, force: forced });
+      const { jobId } = await call("POST", `/api/tasks/${o}/${r}/${n}/run`, { agent, model: model || undefined, force: forced });
       location.hash = `#/run/${jobId}`;
     } catch (err) {
       toast(err.message); e.target.disabled = false; e.target.textContent = "Claim & run agent";
@@ -1138,7 +1142,7 @@ async function viewRun(id) {
   main.innerHTML = `
     <a class="back" href="${taskHref(job.ref)}">← ${esc(job.ref)}</a>
     <div class="row" style="justify-content:space-between;flex-wrap:wrap;margin-bottom:12px">
-      <h1>${esc(job.agent)} on ${esc(job.ref)}</h1>
+      <h1>${esc(job.agent)}${job.model ? ` <span class="pill">${esc(job.model)}</span>` : ""} on ${esc(job.ref)}</h1>
       <div class="row"><span id="status"></span><button id="stop" class="danger" hidden>Stop agent</button></div>
     </div>
     <pre class="term" id="term"></pre>
@@ -1226,7 +1230,7 @@ async function viewRuns() {
   const jobs = await call("GET", "/api/jobs");
   main.innerHTML = `<h1>Runs</h1><p class="sub">Agent runs started from this browser since the server started.</p>
     <div class="panel">${jobs.length ? `<table><tr><th>Task</th><th>Agent</th><th>Status</th><th>Started</th></tr>
-      ${jobs.map((j) => `<tr><td><a href="#/run/${j.id}">${esc(j.ref)}</a></td><td>${esc(j.agent)}</td><td>${esc(j.status)}</td><td>${ago(j.startedAt)}</td></tr>`).join("")}
+      ${jobs.map((j) => `<tr><td><a href="#/run/${j.id}">${esc(j.ref)}</a></td><td>${esc(j.agent)}${j.model ? ` · ${esc(j.model)}` : ""}</td><td>${esc(j.status)}</td><td>${ago(j.startedAt)}</td></tr>`).join("")}
     </table>` : `<p class="sub" style="margin:0">No runs yet. Pick a task on the <a href="#/projects">board</a>.</p>`}</div>`;
 }
 
