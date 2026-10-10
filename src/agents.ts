@@ -51,6 +51,10 @@ export const AGENTS: Agent[] = [
     interactive: (p) => [p],
     headless: (p) => ["exec", "--full-auto", p],
     modelArgs: (m) => (m ? ["-m", m] : []),
+    stream: {
+      args: (p) => ["exec", "--full-auto", "--json", p],
+      format: formatCodexEvent,
+    },
   },
   {
     name: "gemini",
@@ -214,4 +218,37 @@ function formatClaudeEvent(line: string): string | null {
     return `■ Agent finished (${ev.num_turns ?? "?"} turns${cost})${ev.is_error ? `: ${ev.result}` : ""}`;
   }
   return null;
+}
+
+/** Codex `exec --json` emits one event per line, shaped like `{ id, msg: { type, ... } }`. */
+function formatCodexEvent(line: string): string | null {
+  let ev: any;
+  try {
+    ev = JSON.parse(line);
+  } catch {
+    return line;
+  }
+  const msg = ev.msg ?? ev;
+  switch (msg.type) {
+    case "agent_message":
+      return typeof msg.message === "string" ? msg.message.trim() || null : null;
+    case "exec_command_begin": {
+      const cmd = Array.isArray(msg.command) ? msg.command.join(" ") : msg.command;
+      return `→ exec${cmd ? ` ${String(cmd).slice(0, 160)}` : ""}`;
+    }
+    case "patch_apply_begin": {
+      const files = msg.changes ? Object.keys(msg.changes).join(", ") : "";
+      return `→ apply_patch${files ? ` ${files.slice(0, 160)}` : ""}`;
+    }
+    case "mcp_tool_call_begin": {
+      const tool = msg.invocation?.tool ?? msg.tool ?? "";
+      return `→ ${tool || "mcp_tool"}`;
+    }
+    case "task_complete":
+      return `■ Agent finished${msg.last_agent_message ? `: ${msg.last_agent_message}` : ""}`;
+    case "error":
+      return `■ Agent error${msg.message ? `: ${msg.message}` : ""}`;
+    default:
+      return null;
+  }
 }

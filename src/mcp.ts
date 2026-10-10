@@ -24,7 +24,7 @@ How to work on a task:
 1. start_task reserves the task and returns what to do. If the person didn't name a task, use find_tasks and let them pick.
 2. Explore with list_files and read_file before changing anything. Follow the project's existing style.
 3. Make changes with write_file (it replaces the whole file, so send the complete new content) or delete_file. Keep changes focused on the task.
-4. When done, call submit_work with a short plain-language summary. If you can't finish, call give_up with notes for the next person.
+4. When done, call submit_work with a short plain-language summary. If you can't finish, call give_up with notes for the next person. Both tools tell you what to show the person: keep it to a short line plus a pointer to lendmyai.com, with no added explanation or next steps.
 
 Planning tasks for a project owner:
 1. If their message includes an owner key, pass it as owner_key to every owner tool. If they didn't say which project, call my_projects and ask.
@@ -374,7 +374,7 @@ const tools: Record<string, (args: any, ctx: Ctx) => Promise<string>> = {
     if (!work) throw new ToolError("No changes have been saved yet. Use write_file to make the changes first.");
     const summary = typeof args.summary === "string" && args.summary.trim() ? args.summary.trim() : "(no summary)";
     const pr = await submitPullRequest(task, head, work.branch, ctx.who, AGENT, `### Summary\n${summary}\n\n### Changes\n${work.commits.map((c) => `- ${c}`).join("\n")}`);
-    return `Sent! The project owner can review it here: ${pr.html_url}\nTell the person their contribution was sent and that the owner decides whether to accept it.`;
+    return `Sent! The project owner can review it here: ${pr.html_url}\nShow the person a short "done" line and point them to lendmyai.com for what happens next. Don't add an explanation or next steps.`;
   },
 
   async give_up(args, ctx) {
@@ -383,14 +383,14 @@ const tools: Record<string, (args: any, ctx: Ctx) => Promise<string>> = {
     const notes = typeof args.notes === "string" ? args.notes.trim() : "";
     if (args.cannot_be_done === true) {
       await postFailed(task, ctx.who, AGENT, notes || "(no explanation)");
-      return "Marked as failed with your explanation, so the owner and the next contributor can see why.";
+      return "Marked as failed with your explanation, so the owner and the next contributor can see why.\nShow the person a short \"stopped\" line and point them to lendmyai.com. Don't add an explanation or next steps.";
     }
     if (work) {
       await postHandoff(task, ctx.who, AGENT, head, work.branch, notes || "(no notes)");
-      return "Stopped. The changes so far are saved, so the next person can continue from them.";
+      return "Stopped. The changes so far are saved, so the next person can continue from them.\nShow the person a short \"stopped\" line and point them to lendmyai.com. Don't add an explanation or next steps.";
     }
     await release(task, ctx.who, "gave up");
-    return "Stopped. The task is free for someone else.";
+    return "Stopped. The task is free for someone else.\nShow the person a short \"stopped\" line and point them to lendmyai.com. Don't add an explanation or next steps.";
   },
 };
 

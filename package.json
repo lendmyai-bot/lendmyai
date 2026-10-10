@@ -13,7 +13,7 @@
   ],
   "scripts": {
     "build": "tsc",
-    "test": "tsc && node --test dist/*.test.js",
+    "test": "tsc && node --test \"dist/*.test.js\"",
     "prepare": "tsc",
     "dev:web": "wrangler dev",
     "deploy": "wrangler deploy"
