@@ -23,7 +23,9 @@ export function findToken(): string | undefined {
     if (saved.token) return saved.token;
   } catch {}
   try {
-    return execFileSync("gh", ["auth", "token"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim() || undefined;
+    // The MSI/winget `gh` is a native gh.exe that runs without a shell, but other installs (scoop, npm)
+    // can be .cmd shims, which Windows only starts through a shell. The arguments are fixed, so this is safe.
+    return execFileSync("gh", ["auth", "token"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], shell: process.platform === "win32" }).trim() || undefined;
   } catch {
     return undefined;
   }
