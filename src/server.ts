@@ -36,6 +36,7 @@ interface Job {
 interface ReviewJob {
   id: string;
   repo: string;
+  agent: string;
   status: "running" | "done" | "error";
   log: string[];
   outcomes: Outcome[];
@@ -46,6 +47,7 @@ interface ReviewJob {
 interface AutoJob {
   id: string;
   repo?: string;
+  agent: string;
   status: "running" | "done" | "error";
   log: string[];
   tasks: string[];
@@ -191,7 +193,7 @@ const localRoutes: Route[] = [
     const max = Math.min(Math.max(Number(body?.max ?? 3), 1), 10);
     const parallel = Math.min(Math.max(Number(body?.parallel ?? 2), 1), 5);
     const login = await me();
-    const job: AutoJob = { id: String(++jobSeq), repo, status: "running", log: [], tasks: [], outcomes: [], startedAt: new Date().toISOString() };
+    const job: AutoJob = { id: String(++jobSeq), repo, agent: agent.name, status: "running", log: [], tasks: [], outcomes: [], startedAt: new Date().toISOString() };
     autos.set(job.id, job);
     (async () => {
       job.log.push(`Looking for open tasks${repo ? ` in ${repo}` : ""}…`);
@@ -228,7 +230,7 @@ const localRoutes: Route[] = [
     const repo = `${o}/${r}`;
     if ([...reviews.values()].some((j) => j.repo === repo && j.status === "running")) throw new HttpError(409, "A review is already running for this project.");
     const agent = resolveAgent({ agent: body?.agent || undefined, model: body?.model || undefined, shell: false });
-    const job: ReviewJob = { id: String(++jobSeq), repo, status: "running", log: [], outcomes: [], startedAt: new Date().toISOString() };
+    const job: ReviewJob = { id: String(++jobSeq), repo, agent: agent.name, status: "running", log: [], outcomes: [], startedAt: new Date().toISOString() };
     reviews.set(job.id, job);
     (async () => {
       const prs = await findPrs(repo);
