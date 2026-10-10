@@ -1,14 +1,16 @@
 {
   "name": "lendmyai-desktop",
   "version": "0.2.1",
-  "description": "lendmyai for macOS: lend your AI to open projects, or review all pull requests, without a terminal.",
+  "description": "lendmyai for macOS and Windows: lend your AI to open projects, or review all pull requests, without a terminal.",
   "private": true,
   "main": "main.cjs",
   "scripts": {
     "prepare-app": "node prepare.cjs",
     "start": "npm run prepare-app && electron .",
     "pack": "npm run prepare-app && electron-builder --mac --dir",
-    "dist": "npm run prepare-app && electron-builder --mac"
+    "dist": "npm run prepare-app && electron-builder --mac",
+    "pack:win": "npm run prepare-app && electron-builder --win --dir",
+    "dist:win": "npm run prepare-app && electron-builder --win"
   },
   "build": {
     "appId": "com.lendmyai.owner",
@@ -26,6 +28,16 @@
         "zip"
       ],
       "icon": "build/icon.icns"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false
     }
   },
   "devDependencies": {
