@@ -292,6 +292,14 @@ const forcedTasks = new Set();
 // ---------- helpers ----------
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
+// A <select> for the installed agents, hidden (and defaulting to that one agent) when only one is installed.
+function agentPickerHtml(id) {
+  return me.agents.length > 1
+    ? `<select id="${id}" aria-label="AI" style="width:auto">${me.agents.map((a) => `<option>${esc(a)}</option>`).join("")}</select>`
+    : `<input type="hidden" id="${id}" value="${esc(me.agents[0] ?? "")}">`;
+}
+const agentPickerValue = (id) => document.getElementById(id)?.value;
+
 if (window.DOMPurify) {
   DOMPurify.addHook("afterSanitizeAttributes", (n) => { if (n.tagName === "A") { n.target = "_blank"; n.rel = "noopener noreferrer"; } });
 }
@@ -464,12 +472,12 @@ async function viewProjects() {
     <div class="row" id="projects-list" style="justify-content:space-between;flex-wrap:wrap;align-items:flex-end;margin-bottom:20px">
       <div><h1>Projects</h1><p class="sub" style="margin:0">Open-source projects looking for help. Pick one and lend your AI to its tasks.</p></div>
       <div class="row">
-        ${me.mode === "local" ? `<button id="autoAll" class="primary">Let my AI work on tasks</button>` : ""}
+        ${me.mode === "local" ? `<div class="row" style="gap:6px">${agentPickerHtml("auto-agent")}<button id="autoAll" class="primary">Let my AI work on tasks</button></div>` : ""}
         <a href="#/publish"><button${me.mode === "local" ? "" : ` class="primary"`}>Add your project</button></a>
       </div>
     </div>
     <div id="list">${loading("projects")}</div>`
-  document.getElementById("autoAll")?.addEventListener("click", (e) => startAuto(e.target, {}));
+  document.getElementById("autoAll")?.addEventListener("click", (e) => startAuto(e.target, { agent: agentPickerValue("auto-agent") }));
   const list = document.getElementById("list");
   try {
     const projects = await call("GET", "/api/projects");
@@ -599,7 +607,7 @@ async function viewProject(o, r) {
       </div>
       ${p.canManage ? `<div class="row">
         ${p.listed ? `<button id="unlist" class="danger">Unlist</button>` : `<button id="list">List project</button>`}
-        ${me.mode === "local" && inReview ? `<button id="reviewAll" class="primary">Review all (${inReview})</button>` : ""}
+        ${me.mode === "local" && inReview ? `${agentPickerHtml("review-agent")}<button id="reviewAll" class="primary">Review all (${inReview})</button>` : ""}
         <a href="${projectHref(full)}/new"><button>Add one task</button></a>
       </div>` : ""}
     </div>
@@ -610,7 +618,7 @@ async function viewProject(o, r) {
       <div><b>Plan tasks with your AI</b><span>Say what you want to achieve. Your AI reads the project and suggests small tasks; you tick the ones to post.</span></div>
       <div class="plan-form"><textarea id="planGoal" rows="2" maxlength="2000" placeholder="e.g. Make the signup flow work on phones"></textarea><button class="primary" id="planGo">Plan tasks</button></div>
       <div id="planOut"></div></div>` : ""}
-    ${me.mode === "local" && p.tasks.some((t) => t.state.kind === "available") ? `<div class="row" style="margin-bottom:16px"><button id="autoRepo" class="primary">Let my AI work on this project</button></div>` : ""}
+    ${me.mode === "local" && p.tasks.some((t) => t.state.kind === "available") ? `<div class="row" style="margin-bottom:16px">${agentPickerHtml("autoRepo-agent")}<button id="autoRepo" class="primary">Let my AI work on this project</button></div>` : ""}
     <div class="stats">
       <div><b>${p.tasks.length - inReview - failed}</b><span>open tasks</span></div>
       <div><b>${inReview}</b><span>in review</span></div>
@@ -629,10 +637,10 @@ async function viewProject(o, r) {
     if (confirm("Remove this project from lendmyai? Its tasks stay on GitHub but won't be listed.")) toggle(e.target, `/api/projects/${o}/${r}/unlist`, "Project unlisted");
   });
   document.getElementById("list")?.addEventListener("click", (e) => toggle(e.target, `/api/repos/${o}/${r}/init`, "Project listed"));
-  document.getElementById("autoRepo")?.addEventListener("click", (e) => startAuto(e.target, { repo: full }));
+  document.getElementById("autoRepo")?.addEventListener("click", (e) => startAuto(e.target, { repo: full, agent: agentPickerValue("autoRepo-agent") }));
   document.getElementById("reviewAll")?.addEventListener("click", async (e) => {
     e.target.disabled = true;
-    try { const { reviewId } = await call("POST", `/api/projects/${o}/${r}/review`, {}); location.hash = `#/review/${reviewId}`; }
+    try { const { reviewId } = await call("POST", `/api/projects/${o}/${r}/review`, { agent: agentPickerValue("review-agent") }); location.hash = `#/review/${reviewId}`; }
     catch (err) { toast(err.message); e.target.disabled = false; }
   });
   loadPlanButton(full);
@@ -1033,7 +1041,7 @@ async function viewAuto(id) {
   main.innerHTML = `
     <a class="back" href="#/projects">← Projects</a>
     <div class="row" style="justify-content:space-between;flex-wrap:wrap;margin-bottom:12px">
-      <h1>Your AI is working</h1>
+      <h1>${esc(job.agent)} is working</h1>
       <div class="row"><span id="status"></span><button id="stop" class="danger" hidden>Stop</button></div>
     </div>
     <div id="outcomes"></div>
@@ -1083,7 +1091,7 @@ async function viewReview(id) {
   main.innerHTML = `
     <a class="back" href="${projectHref(job.repo)}">← ${esc(job.repo)}</a>
     <div class="row" style="justify-content:space-between;flex-wrap:wrap;margin-bottom:12px">
-      <h1>Review all pull requests</h1><span id="status"></span>
+      <h1>${esc(job.agent)} reviewing pull requests</h1><span id="status"></span>
     </div>
     <div id="outcomes"></div>
     <pre class="term" id="term" style="height:300px"></pre>`;
