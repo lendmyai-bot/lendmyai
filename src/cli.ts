@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { parseArgs } from "node:util";
-import { AGENTS } from "./agents.js";
+import { AGENTS, agentInfo } from "./agents.js";
 import { match, sharedRoutes } from "./api.js";
 import { findToken, login, logout, useNodeAuth } from "./auth.js";
 import { GitHubError, api, getComments, me, postComment } from "./github.js";
@@ -17,6 +17,7 @@ const HELP = `lendmyai: lend your AI to open GitHub tasks.
   lendmyai                          Sign in if needed and open the app in your browser
   lendmyai serve [--port 4321]      Start the local app without opening a browser
   lendmyai login | logout           Sign in to / out of GitHub
+  lendmyai agents                   Show which AI CLIs were found, their versions, what each supports, and the default
 
 Contributors
   lendmyai projects                 List projects looking for help
@@ -75,6 +76,18 @@ async function main(): Promise<void> {
       return login();
     case "logout":
       return logout();
+    case "agents": {
+      const yes = (b: boolean) => (b ? "yes" : "no");
+      const info = agentInfo();
+      for (const a of info) {
+        const state = a.installed ? `installed${a.version ? ` (${a.version})` : ""}` : `not found (looked for "${a.bin}")`;
+        console.log(`${a.name.padEnd(8)} ${state}${a.isDefault ? "  <- default" : ""}`);
+        console.log(`${"".padEnd(9)}live progress: ${yes(a.streaming)}  unattended build/test: ${yes(a.buildAndTest)}`);
+        if (!a.installed) console.log(`${"".padEnd(9)}install: ${a.install}`);
+      }
+      if (!info.some((a) => a.installed)) console.log("\nNo supported AI CLI found. Install one above, or use --agent-cmd.");
+      return;
+    }
     case "projects": {
       const projects = (await match(sharedRoutes, "GET", "/api/projects")!.handler([], undefined, new URL("http://x"))) as any[];
       if (!projects.length) return console.log("No projects listed yet.");
