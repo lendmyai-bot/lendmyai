@@ -1,4 +1,5 @@
 import { spawn, spawnSync } from "node:child_process";
+import { readSettings } from "./settings.js";
 
 // Each adapter turns a prompt into a command line for an agent CLI the
 // contributor already has installed and logged in to with their own
@@ -80,9 +81,17 @@ export function installedAgents(): string[] {
 /**
  * Resolves the agent to run. `custom` is a command template such as
  * "aider --message {prompt}"; without a {prompt} placeholder the prompt is appended.
+ * Without an explicit agent or model, the contributor's saved preferences
+ * (~/.lendmyai/settings.json) are used; explicit values always win.
  */
 export function resolveAgent(opts: { agent?: string; custom?: string; model?: string; shell?: boolean }): ResolvedAgent {
-  const { model } = opts;
+  const saved = readSettings();
+  const explicitAgent = opts.agent || undefined;
+  const savedAgent = AGENTS.find((a) => a.name === saved.agent);
+  // An unknown or uninstalled saved agent is ignored, so the run falls back to auto-detection.
+  const agentName = explicitAgent ?? (!opts.custom && savedAgent && installed(savedAgent.bin) ? savedAgent.name : undefined);
+  // A saved model belongs to the saved agent, so it is not applied when another agent was asked for.
+  const model = opts.model || (!explicitAgent || explicitAgent === saved.agent ? saved.model : undefined);
   if (opts.custom) {
     const parts = opts.custom.trim().split(/\s+/);
     const command = (prompt: string): [string, string[]] => {
@@ -94,13 +103,13 @@ export function resolveAgent(opts: { agent?: string; custom?: string; model?: st
     return { name: parts[0], model, command, streamCommand: (p) => ({ cmd: command(p), format: (l) => l }) };
   }
 
-  const candidates = opts.agent ? AGENTS.filter((a) => a.name === opts.agent) : AGENTS;
-  if (opts.agent && !candidates.length) {
-    throw new Error(`Unknown agent "${opts.agent}". Known: ${AGENTS.map((a) => a.name).join(", ")}, or use --agent-cmd.`);
+  const candidates = agentName ? AGENTS.filter((a) => a.name === agentName) : AGENTS;
+  if (agentName && !candidates.length) {
+    throw new Error(`Unknown agent "${agentName}". Known: ${AGENTS.map((a) => a.name).join(", ")}, or use --agent-cmd.`);
   }
   const agent = candidates.find((a) => installed(a.bin));
   if (!agent) {
-    throw new Error(opts.agent ? `"${opts.agent}" is not installed or not on PATH.` : `No supported agent CLI found (${AGENTS.map((a) => a.bin).join(", ")}). Install one or use --agent-cmd.`);
+    throw new Error(agentName ? `"${agentName}" is not installed or not on PATH.` : `No supported agent CLI found (${AGENTS.map((a) => a.bin).join(", ")}). Install one or use --agent-cmd.`);
   }
   const extra = agent.modelArgs?.(model) ?? [];
   // Only for unattended runs: an interactive session asks the contributor instead.
