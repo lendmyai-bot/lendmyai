@@ -7,8 +7,13 @@ const { createServer } = require("node:net");
 const { join } = require("node:path");
 const { pathToFileURL } = require("node:url");
 
-/** Apps opened from Finder don't get the shell's PATH, so claude, git and gh would not be found. */
+/**
+ * Apps opened from Finder don't get the shell's PATH, so claude, git and gh would not be found.
+ * macOS only: apps started from the Windows Start Menu or Explorer inherit the user's PATH,
+ * and there is no /bin/zsh to ask there.
+ */
 function fixPath() {
+  if (process.platform !== "darwin") return;
   const extra = ["/opt/homebrew/bin", "/usr/local/bin", `${process.env.HOME}/.local/bin`, `${process.env.HOME}/.claude/local`];
   let fromShell = "";
   try {
