@@ -352,7 +352,7 @@ async function refreshConnector() {
   try { connector = await call("GET", "/api/connector"); } catch {}
   return connector;
 }
-const claudeTaskUrl = (t) => `https://claude.ai/new?q=${encodeURIComponent(`Please do this lendmyai task for me: ${t.ref} "${t.title}"`)}`;
+const claudeTaskUrl = (t) => `https://claude.ai/new?q=${encodeURIComponent(`Please do this lendmyai task for me: ${t.ref} "${t.title}"\n\nWhen you have submitted the work, reply with just: a short "Completed" line, one sentence on what you changed, and "You can go back to lendmyai.com". Do not explain the code, list next steps, or suggest follow-ups.`)}`;
 
 /** Shown under a button when this browser hasn't connected lendmyai to Claude yet. Never blocks. */
 const firstTimeLink = () => connector.connected ? "" :
