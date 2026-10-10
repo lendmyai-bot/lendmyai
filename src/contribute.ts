@@ -259,7 +259,7 @@ export function buildCloudPrompt(task: Task, head: string, branch: string): stri
     "2. Do the task below. Follow the project's existing style, and run its tests if it has any.",
     `3. Commit with a clear message saying what you changed and how you checked it, then push to ${branch}. If that push is refused, push to the branch you were given instead.`,
     "4. Don't open a pull request; lendmyai sends the work to the project owner.",
-    "5. Finish by telling me in plain, non-technical words what you did, then: \"Go back to lendmyai.com and click Send to project owner.\"",
+    "5. Finish with a short completed message, one sentence at most, then: \"Go back to lendmyai.com and click Send to project owner.\" Don't add next steps or suggestions.",
     "",
     "## Task (approved by the project owner)",
     body.length > MAX_TASK_CHARS ? `${body.slice(0, MAX_TASK_CHARS)}\n\n(Task text shortened; read the full issue at ${task.url}.)` : body,
