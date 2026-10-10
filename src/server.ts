@@ -75,6 +75,9 @@ let jobSeq = 0;
 
 const activeJob = (ref: string) => [...jobs.values()].find((j) => j.ref === ref && !["done", "error"].includes(j.status));
 
+/** An optional model name from a request body, trimmed; empty means none. */
+const modelOf = (body: any): string | undefined => (typeof body?.model === "string" && body.model.trim() ? body.model.trim() : undefined);
+
 const sharedTaskDetail = match(sharedRoutes, "GET", "/api/tasks/o/r/1")!.handler;
 
 const localRoutes: Route[] = [
@@ -108,7 +111,7 @@ const localRoutes: Route[] = [
     await checkWorkable(task, login, { force }).catch((e) => {
       throw new HttpError(400, e.message);
     });
-    const agent = resolveAgent({ agent: body?.agent || undefined, model: body?.model || undefined });
+    const agent = resolveAgent({ agent: body?.agent || undefined, model: modelOf(body) });
 
     const job: Job = { id: String(++jobSeq), ref, agent: agent.name, status: "starting", log: [], startedAt: new Date().toISOString() };
     jobs.set(job.id, job);
@@ -151,7 +154,7 @@ const localRoutes: Route[] = [
     const goal = String(body?.goal ?? "").trim();
     if (!goal) throw new HttpError(400, "Say what you want to achieve first.");
     if ([...plans.values()].some((j) => j.repo === repo && j.status === "running")) throw new HttpError(409, "A plan is already being made for this project.");
-    const agent = resolveAgent({ agent: body?.agent || undefined, model: body?.model || undefined, shell: false });
+    const agent = resolveAgent({ agent: body?.agent || undefined, model: modelOf(body), shell: false });
     const job: PlanJob = { id: String(++jobSeq), repo, status: "running", log: [], tasks: [], created: [] };
     plans.set(job.id, job);
     planProject(repo, goal, agent, (line) => job.log.push(line))
@@ -189,7 +192,7 @@ const localRoutes: Route[] = [
   route("POST", "/api/auto", async (_p, body) => {
     const repo = typeof body?.repo === "string" && body.repo.includes("/") ? body.repo : undefined;
     if ([...autos.values()].some((j) => j.status === "running")) throw new HttpError(409, "AI is already working on tasks.");
-    const agent = resolveAgent({ agent: body?.agent || undefined, model: body?.model || undefined });
+    const agent = resolveAgent({ agent: body?.agent || undefined, model: modelOf(body) });
     const max = Math.min(Math.max(Number(body?.max ?? 3), 1), 10);
     const parallel = Math.min(Math.max(Number(body?.parallel ?? 2), 1), 5);
     const login = await me();
@@ -229,7 +232,7 @@ const localRoutes: Route[] = [
   route("POST", "/api/projects/:owner/:repo/review", async ([o, r], body) => {
     const repo = `${o}/${r}`;
     if ([...reviews.values()].some((j) => j.repo === repo && j.status === "running")) throw new HttpError(409, "A review is already running for this project.");
-    const agent = resolveAgent({ agent: body?.agent || undefined, model: body?.model || undefined, shell: false });
+    const agent = resolveAgent({ agent: body?.agent || undefined, model: modelOf(body), shell: false });
     const job: ReviewJob = { id: String(++jobSeq), repo, agent: agent.name, status: "running", log: [], outcomes: [], startedAt: new Date().toISOString() };
     reviews.set(job.id, job);
     (async () => {
