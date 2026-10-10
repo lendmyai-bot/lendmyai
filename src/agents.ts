@@ -28,6 +28,23 @@ export interface Agent {
 
 const CLAUDE_SHELL_TOOLS = ["npm", "npx", "node", "yarn", "pnpm", "python", "python3", "pip", "pytest", "cargo", "go", "make", "git status", "git diff", "git log", "ls", "cat", "grep"].map((c) => `Bash(${c}:*)`).join(",");
 
+// How each agent's unattended run (headless) is restricted:
+//
+// claude  Edits are auto-approved (--permission-mode acceptEdits) and shell commands are limited to the
+//         fixed allowlist in CLAUDE_SHELL_TOOLS (build/test tools plus read-only git), added by shellArgs.
+//         Without shellArgs (shell: false, the pull-request reviewer) it can edit files but run no commands.
+// codex   `exec --full-auto` is Codex's own sandbox preset: workspace-write sandbox, no approval prompts.
+//         Commands (including tests) run, but only inside that sandbox: writes outside the checkout are
+//         blocked and, by default, so is network access, so installing dependencies can fail.
+//         There is no per-command allowlist like Claude's, so it has no shellArgs. This is the CLI's
+//         documented behaviour; it has not been checked against an installed Codex here.
+// gemini  `--approval-mode auto_edit` auto-approves file edits only. Shell commands are not approved, so an
+//         unattended run can edit files but not build or test. Allowing a fixed list of commands would need
+//         Gemini's tool allowlist flag, which has not been checked against an installed CLI, so none is added
+//         rather than guessing a flag that could break every run. `yolo` would be wider than Claude's list.
+//
+// Callers that must give no shell access (src/review.ts passes shell: false) rely on shellArgs being left out,
+// which holds for every agent here. Codex's sandbox preset is part of its headless() command either way.
 export const AGENTS: Agent[] = [
   {
     name: "claude",
