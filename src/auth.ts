@@ -60,6 +60,12 @@ export async function login(onCode?: (url: string, code: string) => void): Promi
     if (res.access_token) {
       mkdirSync(HOME_DIR, { recursive: true });
       writeFileSync(AUTH_FILE, JSON.stringify({ token: res.access_token }), { mode: 0o600 });
+      // Owner-only on macOS and Linux. Windows has no POSIX permission bits: Node ignores `mode` there and
+      // chmod only toggles the read-only flag (0o600 keeps the file writable), so on Windows this call does not
+      // throw but also does not restrict anything. That is an accepted tradeoff: the file sits in the user's
+      // own profile folder (~/.lendmyai), which Windows already limits to that user, SYSTEM and administrators.
+      // Restricting it further would need an ACL change (for example `icacls <file> /inheritance:r /grant:r
+      // %USERNAME%:F`), which we don't run.
       chmodSync(AUTH_FILE, 0o600);
       console.log("✓ Signed in to GitHub.");
       return;
