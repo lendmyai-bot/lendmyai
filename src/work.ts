@@ -201,8 +201,9 @@ export function buildPrompt(task: Task, images: string[] = []): string {
     `- Before you stop, finished or not, write ${HANDOFF_FILE} with:`,
     "  - First line: `STATUS: DONE`, `STATUS: PARTIAL`, or `STATUS: FAILED`. Use FAILED only when the task cannot be completed as written (for example it is not a code change, needs access or a decision you don't have, or its premise is wrong), and explain why so a later contributor or agent can use it.",
     "  - Next line: `MODEL: <the exact model id you are running as>`. Write `MODEL: unknown` rather than guess.",
-    "  - What you changed and how you verified it",
-    "  - If PARTIAL: what remains, so the next contributor's agent can continue",
+    "  - If DONE: the note is at most two or three plain sentences saying what you changed and how you checked it. Do not suggest next steps, follow-ups or improvements.",
+    "  - If PARTIAL: what you changed and verified so far, and what remains, so the next contributor's agent can continue",
+    "  - If FAILED: why the task could not be completed (see above)",
   ].join("\n");
 }
 
@@ -237,7 +238,7 @@ export async function finishAutomatically(
 ): Promise<{ message: string; url?: string }> {
   if (r.status === "FAILED") return complete(task, ws, login, agent, "failed", r, info);
   if (!r.hasWork) {
-    const why = r.note.replace(/\s+/g, " ").replace(/@/g, "@\u200b").slice(0, 400);
+    const why = r.note.replace(/\s+/g, " ").replace(/@/g, "@​").slice(0, 400);
     // The agent explained why nothing changed (already done, not a code change, ...): park the task as failed with that
     // explanation, so it leaves the available list and the next agent or owner can read why.
     if (r.status !== "unknown") return complete(task, ws, login, agent, "failed", { ...r, note: r.note }, info);
