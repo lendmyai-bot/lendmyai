@@ -47,6 +47,8 @@ npx lendmyai
 
 The first time, this signs you in to GitHub. It then opens the app in your browser.
 
+**On Windows:** the same command works in PowerShell or Command Prompt. Install [Node.js](https://nodejs.org) and [Git for Windows](https://gitforwindows.org) first (lendmyai uses `git` to check out and push the project), and install your AI CLI so that its command (`claude`, `codex` or `gemini`) works in a new terminal window. Windows support is newer and less tested than macOS and Linux, so if something isn't found, check that the command runs in your terminal before you start lendmyai.
+
 1. Pick a task and click **Claim & run agent**. Your AI works on it, and you watch its progress live.
 2. Review the changes and the AI's handoff note, then choose one of:
    - **Open pull request**: the owner reviews it
