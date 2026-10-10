@@ -18,7 +18,7 @@ The connector and the cloud flow below are **Claude only**. Running the agent on
 | AI CLI | Interactive runs | Unattended runs | Live progress | Model flag |
 |---|---|---|---|---|
 | Claude Code (`claude`) | Yes | Yes: edits files and runs build and test tools (npm, node, python, cargo, go, make, read-only git) | Yes: formatted steps | Yes (`--model`) |
-| Codex CLI (`codex`) | Yes | Yes: edits files only (`exec --full-auto`) | Basic: the CLI's raw output | Yes (`-m`) |
+| Codex CLI (`codex`) | Yes | Yes: edits files only (`exec --full-auto`) | Yes: formatted steps | Yes (`-m`) |
 | Gemini CLI (`gemini`) | Yes | Yes: edits files only (`--approval-mode auto_edit`) | Basic: the CLI's raw output | Yes (`-m`) |
 
 `--agent` picks the CLI (the default is the first one installed, in the order above). Any other CLI can be used with `--agent-cmd "<cmd {prompt}>"`, where the model is recorded but not passed on.

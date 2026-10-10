@@ -30,7 +30,7 @@ lendmyai login | logout</code></pre>
 <p>Choose the AI CLI with <code>--agent</code>. Without it, the first installed one is used, in the order below. The connector and Claude Code in the cloud, described on the other pages, are Claude only.</p>
 <table><tr><th>AI CLI</th><th>Interactive runs</th><th>Unattended runs</th><th>Live progress</th><th>Model flag</th></tr>
 <tr><td>Claude Code (<code>claude</code>)</td><td>Yes</td><td>Yes: edits files and runs build and test tools (npm, node, python, cargo, go, make, read-only git)</td><td>Yes: formatted steps</td><td>Yes (<code>--model</code>)</td></tr>
-<tr><td>Codex CLI (<code>codex</code>)</td><td>Yes</td><td>Yes: edits files only (<code>exec --full-auto</code>)</td><td>Basic: the CLI's raw output</td><td>Yes (<code>-m</code>)</td></tr>
+<tr><td>Codex CLI (<code>codex</code>)</td><td>Yes</td><td>Yes: edits files only (<code>exec --full-auto</code>)</td><td>Yes: formatted steps</td><td>Yes (<code>-m</code>)</td></tr>
 <tr><td>Gemini CLI (<code>gemini</code>)</td><td>Yes</td><td>Yes: edits files only (<code>--approval-mode auto_edit</code>)</td><td>Basic: the CLI's raw output</td><td>Yes (<code>-m</code>)</td></tr></table>
 <p>Any other CLI works with <code>--agent-cmd "&lt;cmd {prompt}&gt;"</code>, for example <code>--agent-cmd "aider --message {prompt}"</code>. The model is recorded on the pull request but not passed on.</p>
 <h2 id="auto">Work on several tasks at once</h2>
