@@ -361,7 +361,7 @@ const firstTimeLink = () => connector.connected ? "" :
 /** The single button: always straight to Claude with the task typed in. */
 function doTaskHtml(t) {
   return `<a href="${esc(claudeTaskUrl(t))}" target="_blank" rel="noopener"><button class="primary big" style="width:100%">Do this task with Claude</button></a>
-    <p class="fine" style="text-align:center">Free with any Claude plan. No GitHub or coding needed.</p>${firstTimeLink()}`;
+    <p class="fine" style="text-align:center">Free with any Claude plan. Claude replies with a short confirmation; then come back to lendmyai.com.</p>${firstTimeLink()}`;
 }
 
 /** Owners: the plan link carries a fresh owner key, so Claude can post tasks as them without reconnecting. */
