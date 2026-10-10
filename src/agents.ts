@@ -58,6 +58,11 @@ export const AGENTS: Agent[] = [
     interactive: (p) => ["-i", p],
     headless: (p) => ["-p", p, "--approval-mode", "auto_edit"],
     modelArgs: (m) => (m ? ["-m", m] : []),
+    // `--output-format stream-json` is listed by `gemini --help` (choices: text, json, stream-json).
+    stream: {
+      args: (p) => ["-p", p, "--approval-mode", "auto_edit", "--output-format", "stream-json"],
+      format: formatGeminiEvent,
+    },
   },
 ];
 
@@ -214,6 +219,36 @@ function formatCodexEvent(line: string): string | null {
       return `■ Agent finished${msg.last_agent_message ? `: ${msg.last_agent_message}` : ""}`;
     case "error":
       return `■ Agent error${msg.message ? `: ${msg.message}` : ""}`;
+    default:
+      return null;
+  }
+}
+
+/**
+ * Gemini `--output-format stream-json` emits one event per line: init, message, tool_use, tool_result, error, result.
+ * Assistant text arrives as many small `delta` fragments, so it is left out; tool use, failures and the end are shown.
+ */
+export function formatGeminiEvent(line: string): string | null {
+  let ev: any;
+  try {
+    ev = JSON.parse(line);
+  } catch {
+    return line;
+  }
+  switch (ev.type) {
+    case "tool_use": {
+      const i = ev.parameters ?? {};
+      const detail = i.file_path ?? i.absolute_path ?? i.path ?? i.dir_path ?? i.command ?? i.pattern ?? i.query ?? "";
+      return `→ ${ev.tool_name ?? "tool"}${detail ? ` ${String(detail).slice(0, 160)}` : ""}`;
+    }
+    case "tool_result":
+      return ev.status === "error" ? `✗ A tool failed${ev.error?.message ? `: ${String(ev.error.message).slice(0, 160)}` : ""}` : null;
+    case "error":
+      return `${ev.severity === "warning" ? "⚠" : "■ Agent error"}${ev.message ? `: ${ev.message}` : ""}`;
+    case "result": {
+      const ms = ev.stats?.duration_ms;
+      return `■ Agent finished (${ev.status ?? "done"}${typeof ms === "number" ? `, ${Math.round(ms / 1000)}s` : ""})`;
+    }
     default:
       return null;
   }
