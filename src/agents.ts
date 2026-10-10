@@ -24,6 +24,8 @@ export interface Agent {
   /** Extra flags that select the model, for agents that support them. */
   modelArgs?(model?: string): string[];
   stream?: { args(prompt: string): string[]; format(line: string): string | null };
+  /** One line telling a contributor how to install the CLI. */
+  install: string;
 }
 
 const CLAUDE_SHELL_TOOLS = ["npm", "npx", "node", "yarn", "pnpm", "python", "python3", "pip", "pytest", "cargo", "go", "make", "git status", "git diff", "git log", "ls", "cat", "grep"].map((c) => `Bash(${c}:*)`).join(",");
@@ -32,6 +34,7 @@ export const AGENTS: Agent[] = [
   {
     name: "claude",
     bin: "claude",
+    install: "npm install -g @anthropic-ai/claude-code",
     interactive: (p) => [p],
     headless: (p) => ["-p", p, "--permission-mode", "acceptEdits"],
     modelArgs: (m) => (m ? ["--model", m] : []),
@@ -44,6 +47,7 @@ export const AGENTS: Agent[] = [
   {
     name: "codex",
     bin: "codex",
+    install: "npm install -g @openai/codex",
     interactive: (p) => [p],
     headless: (p) => ["exec", "--full-auto", p],
     modelArgs: (m) => (m ? ["-m", m] : []),
@@ -51,6 +55,7 @@ export const AGENTS: Agent[] = [
   {
     name: "gemini",
     bin: "gemini",
+    install: "npm install -g @google/gemini-cli",
     interactive: (p) => ["-i", p],
     headless: (p) => ["-p", p, "--approval-mode", "auto_edit"],
     modelArgs: (m) => (m ? ["-m", m] : []),
@@ -75,6 +80,35 @@ function installed(bin: string): boolean {
 
 export function installedAgents(): string[] {
   return AGENTS.filter((a) => installed(a.bin)).map((a) => a.name);
+}
+
+export interface AgentInfo {
+  name: string;
+  bin: string;
+  installed: boolean;
+  /** First line of `<bin> --version`, if the CLI answered in time. */
+  version?: string;
+  /** Live progress as formatted steps (otherwise the CLI's raw output is shown). */
+  streaming: boolean;
+  /** Unattended runs can build and test, not only edit files. */
+  buildAndTest: boolean;
+  /** Chosen when no --agent is given: the first installed one. */
+  isDefault: boolean;
+  install: string;
+}
+
+/** What lendmyai found for each supported agent CLI. Read-only; a CLI that hangs on --version is given up on after 3 seconds. */
+export function agentInfo(): AgentInfo[] {
+  const found = AGENTS.map((a) => installed(a.bin));
+  const first = found.indexOf(true);
+  return AGENTS.map((a, i) => {
+    let version: string | undefined;
+    if (found[i]) {
+      const res = spawnSync(a.bin, ["--version"], { encoding: "utf8", timeout: 3000, stdio: ["ignore", "pipe", "ignore"] });
+      version = res.status === 0 ? res.stdout.split("\n")[0].trim().slice(0, 60) || undefined : undefined;
+    }
+    return { name: a.name, bin: a.bin, installed: found[i], version, streaming: !!a.stream, buildAndTest: !!a.shellArgs, isDefault: i === first, install: a.install };
+  });
 }
 
 /**
