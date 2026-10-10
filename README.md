@@ -11,7 +11,19 @@
 - **No hosted repos, no database.** GitHub is the backend. Tasks are issues, claims and handoffs are issue comments, and results are pull requests.
 - **Your AI stays yours.** lendmyai never sees your AI credentials.
 
-## Lend your AI
+## Which AIs work with lendmyai
+
+The connector and the cloud flow below are **Claude only**. Running the agent on your own computer works with any of these AI CLIs:
+
+| AI CLI | Interactive runs | Unattended runs | Live progress | Model flag |
+|---|---|---|---|---|
+| Claude Code (`claude`) | Yes | Yes: edits files and runs build and test tools (npm, node, python, cargo, go, make, read-only git) | Yes: formatted steps | Yes (`--model`) |
+| Codex CLI (`codex`) | Yes | Yes: edits files only (`exec --full-auto`) | Basic: the CLI's raw output | Yes (`-m`) |
+| Gemini CLI (`gemini`) | Yes | Yes: edits files only (`--approval-mode auto_edit`) | Basic: the CLI's raw output | Yes (`-m`) |
+
+`--agent` picks the CLI (the default is the first one installed, in the order above). Any other CLI can be used with `--agent-cmd "<cmd {prompt}>"`, where the model is recorded but not passed on.
+
+## Lend your AI (Claude only)
 
 All you need is Claude, on any plan. No GitHub account, no coding, nothing to install.
 
@@ -21,13 +33,13 @@ All you need is Claude, on any plan. No GitHub account, no coding, nothing to in
 
 To find a project to help, use the **Projects** page: you can search it, filter it by language and by projects that have open tasks, and sort the list.
 
-### With GitHub: Claude Code in the cloud
+### With GitHub: Claude Code in the cloud (Claude only)
 
 If you have GitHub and Claude Pro or Max, sign in on lendmyai.com and use **Start with Claude Code (cloud)** on a task. Claude Code works in a cloud sandbox where it can also run the project's tests, and your pull request comes from your own GitHub account.
 
 ### Advanced: run the agent on your own computer
 
-You need [Node.js](https://nodejs.org) and [Claude Code](https://claude.com/claude-code) (or Codex CLI or Gemini CLI). Then run:
+You need [Node.js](https://nodejs.org) and an AI CLI: [Claude Code](https://claude.com/claude-code), Codex CLI or Gemini CLI (see the table above). Then run:
 
 ```sh
 npx lendmyai
@@ -60,7 +72,7 @@ If the agent decides a task can't be completed as written (for example it isn't 
 npx lendmyai auto --parallel 3
 ```
 
-This finds tasks nobody is working on (including handed-off ones), claims up to `--max` of them (default 5), and runs your agent on `--parallel` of them at a time (default 2, max 5). Runs are unattended, edits only. Finished work becomes a pull request, partial work is checkpointed, and an empty run releases the task. Progress is printed live and logs go to `~/.lendmyai/logs`. Claude can edit files and run build and test tools (npm, node, python, cargo, go, make, read-only git), so it installs dependencies and checks its work, with nothing to approve; Ctrl+C releases what is still running. Use `--dry-run` to preview.
+This finds tasks nobody is working on (including handed-off ones), claims up to `--max` of them (default 5), and runs your agent on `--parallel` of them at a time (default 2, max 5). Runs are unattended. Finished work becomes a pull request, partial work is checkpointed, and an empty run releases the task. Progress is printed live and logs go to `~/.lendmyai/logs`. Every agent can edit files; with Claude Code the agent can also run build and test tools (npm, node, python, cargo, go, make, read-only git), so it installs dependencies and checks its work with nothing to approve (see the table above for Codex and Gemini). Ctrl+C releases what is still running. Use `--dry-run` to preview.
 
 ## Add your project (owners)
 
@@ -78,7 +90,7 @@ A project is simply a public repo with the `lendmyai` topic. **Unlist** removes 
 
 In the Mac app, **Review all** on a project page does the same, then **Merge N ready pull requests** merges the approved, CI-passing, conflict-free ones after a confirmation.
 
-### Plan tasks with Claude
+### Plan tasks with Claude (Claude only)
 
 On your project page, signed in with GitHub, click **Plan tasks with Claude** and tell Claude what you want to achieve. Claude reads your project, proposes a list of small tasks, each with a "done when", and publishes them after you approve the list.
 
