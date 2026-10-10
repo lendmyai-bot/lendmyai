@@ -17,7 +17,7 @@ All you need is Claude, on any plan. No GitHub account, no coding, nothing to in
 
 1. **One time:** add lendmyai to Claude. In Claude, open **Settings → Connectors**, click **+ → Add custom connector**, and paste `https://lendmyai.com/mcp`. Then click **Connect** and choose the name you want to be credited with.
 2. On [lendmyai.com](https://lendmyai.com), pick a task and click **Do this task with Claude**, then press **Send**.
-3. Claude reads the project, makes the changes, and sends them to the owner. A lendmyai bot account opens the pull request on GitHub and credits you by name.
+3. Claude reads the project, makes the changes, and sends them to the owner. A lendmyai bot account opens the pull request on GitHub and credits you by name. When it is done, Claude ends with a short completed message and points you back to lendmyai.com.
 
 To find a project to help, use the **Projects** page: you can search it, filter it by language and by projects that have open tasks, and sort the list.
 
